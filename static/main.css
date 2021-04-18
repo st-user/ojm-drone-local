@@ -1,0 +1,73 @@
+ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+
+#title {
+    font-size: 36px;
+    margin: auto;
+    width: 480px;
+    line-height: 1.5;
+    text-align: center;
+}
+
+#messageArea {
+    margin: auto;
+    margin-bottom: 12px;
+    max-width: 680px;
+}
+
+#startArea {
+    margin: auto;
+    margin-bottom: 12px;
+    max-width: 680px;
+}
+
+.startControl {
+    overflow: hidden;
+}
+
+.startControl > li {
+    float: left;
+    margin-right: 12px;
+}
+
+.startControl button {
+    width: 80px;
+}
+
+input[name="startKey"] {
+    width: 240px;
+}
+
+#controlArea {
+    margin: auto;
+    max-width: 680px;
+}
+
+.commands {
+    margin: auto;
+    width: 200px;
+    overflow: hidden;
+}
+
+.commands > li {
+    float: left;
+    margin-right: 12px;
+    width: 80px;
+}
+
+.commands button {
+    width: 80px;
+}
+
+.clear {
+    clear: both;
+}
