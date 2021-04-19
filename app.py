@@ -111,11 +111,15 @@ class VideoCaptureTrack(VideoStreamTrack):
         return new_frame
   
 
+# Initialize the components.
+
 clientMessageSocket = messaging.ClientMessageSocket()
 messageChannel = messaging.MessageChannel()
 rtcConnectionHandler = rtc.RTCConnectionHandler()
 droneManager = drone.DroneManager()
 
+
+# Methods for handling HTTP Requests and WebSocket connections.
 
 def log_request(endpointName):
     logging.info(f'Request to {endpointName}')
@@ -301,8 +305,13 @@ async def client_ws_handler(request):
             logging.warn(f'This client does not handle incoming messages. --{msg.data}--')
             
 
+# Main routines.
 
 def main(_dataQueue):
+
+    """
+        The main routine of this application.
+    """
 
     global dataQueue
     global waiting
