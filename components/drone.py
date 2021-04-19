@@ -31,6 +31,11 @@ def use():
     return USE_DRONE
 
 class AsyncDgramServerProtocol:
+
+    """
+        An UDP Protocol implementation for holding a received message.
+    """
+
     def connection_made(self, transport):
         self.transport = transport
 
@@ -44,6 +49,12 @@ class AsyncDgramServerProtocol:
 
 
 class DroneManager:
+
+    """
+        A Component for controling a drone(Tello).
+        This class provides the functionalities to manage the drone 
+        such as sending messages to the drone, receiveing the state information from the drone and so on.
+    """
 
     def __init__(self):
         self.socket = None

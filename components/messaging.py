@@ -2,6 +2,10 @@ import json
 
 class ClientMessageSocket:
 
+    """
+        A Wrapper for websocket connection.
+    """
+
     def __init__(self):
         self.ws = None
 
@@ -15,6 +19,10 @@ class ClientMessageSocket:
 
 
 class MessageChannel:
+
+    """
+        A Wrapper for RTCDataChannel(WebRTC).
+    """
 
     def __init__(self):
         self.channel = None

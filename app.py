@@ -39,6 +39,10 @@ VIDEO_SOURCE = 'udp://127.0.0.1:11111' if USE_DRONE else f'{ROOT}.resources/capt
 
 class VideoCaptureAsync:
 
+    """
+        An OpenCV VideoCapture Wrapper for reading video frames asynchronously.
+    """
+
     def __init__(self, src):
         self.cap = cv2.VideoCapture(src)
         self.grabbed = False
@@ -72,6 +76,10 @@ class VideoCaptureAsync:
        
 
 class VideoCaptureTrack(VideoStreamTrack):
+
+    """
+        A VideoStreamTrack capturing a video stream by using VideoCaptureAsync.
+    """
 
     kind = 'video'
 
@@ -109,12 +117,14 @@ rtcConnectionHandler = rtc.RTCConnectionHandler()
 droneManager = drone.DroneManager()
 
 
+def log_request(endpointName):
+    logging.info(f'Request to {endpointName}')
+
+
 def get_static_content(filename, mediaType):
     content = open(os.path.join(STATIC, filename), 'r').read()
     return web.Response(content_type=mediaType, text=content)
 
-def log_request(endpointName):
-    logging.info(f'Request to {endpointName}')
 
 async def index(request):
     if rtcConnectionHandler.has_pc():
@@ -316,7 +326,15 @@ def main(_dataQueue):
         app, access_log=None, host='0.0.0.0', port=PORT
     )
 
+
 def do_main():
+
+    """
+        Runs the main routine of this application.
+        The main routine is called on the forked proccess 
+        so that it can be restarted(the old process is killed and a new one starts) automatically.
+    """
+
     while True:
         dataQueue = mp.Queue()
         p = mp.Process(target=main, args=(dataQueue,))

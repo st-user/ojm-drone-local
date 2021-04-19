@@ -3,6 +3,12 @@ from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, R
 
 class RTCConnectionHandler:
 
+    """
+        A Component handling WebRTC Connection(RTCPeerConnection).
+        This class provides the functionalities to manage the WebRTC Connection to the remote peer
+        such as handling offer/answer, checking the connection state and so on.
+    """
+
     def __init__(self):
         self.pc = None
         self.track = None
