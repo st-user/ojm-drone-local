@@ -1,112 +1,145 @@
 window.addEventListener('DOMContentLoaded', () => {
 
-        let websocket;
-        let checkStarting;
-        const HEALTH_CHECK_INTERVAL = 1000;
+    const STATE = {
+        INIT: 0,
+        READY: 1,
+        LAND: 2,
+        TAKEOFF: 3
+    };
 
-        const _q = selector => document.querySelector(selector);
-        const _click = ($elem, handler) => $elem.addEventListener('click', handler);
+    let websocket;
+    let checkStarting;
+    let state;
+    const HEALTH_CHECK_INTERVAL = 1000;
+
+    const _q = selector => document.querySelector(selector);
+    const _click = ($elem, handler) => $elem.addEventListener('click', handler);
         
-        const $startKey = _q('#startKey');
-        const $generateKey = _q('#generateKey');
-        const $start = _q('#start');
+    const $startKey = _q('#startKey');
+    const $generateKey = _q('#generateKey');
+    const $start = _q('#start');
 
-        const $takeoff = _q('#takeoff');
-        const $land = _q('#land');
+    const $takeoff = _q('#takeoff');
+    const $land = _q('#land');
 
 
-        function init() {
-            initView();
-        }
+    function init() {
+        state = STATE.INIT;
+        initView();
+    }
 
-        function initView() {
-            $startKey.disabled = false;
-            $generateKey.disabled = false;
-            $start.disabled = false;
+    function initView() {
+        $startKey.disabled = false;
+        enableStartButtons();
+        disableControlButtons();
+    }
 
-            $takeoff.disabled = true;
-            $land.disabled = true;
-        }
+    function ready() {
+        state = STATE.READY;
+        readyView();
+    }
 
-        function ready() {
-            readyView();
-        }
+    function readyView() {
+        $startKey.disabled = true;
+        disableStartButtons();
+        disableControlButtons();
+    }
 
-        function readyView() {
-            $startKey.disabled = true;
-            $generateKey.disabled = true;
-            $start.disabled = true;
+    function land() {
+        state = STATE.LAND;
+        landView();
+    }
 
-            $takeoff.disabled = true;
-            $land.disabled = true;
-        }
+    function landView() {
+        $startKey.disabled = true;
+        disableStartButtons();
+        enableControlButtons();
+    }
 
-        function land() {
-            landView();
-        }
+    function takeoff() {
+        state = STATE.TAKEOFF;
+        takeoffView();
+    }
 
-        function landView() {
-            $startKey.disabled = true;
-            $generateKey.disabled = true;
-            $start.disabled = true;
+    function takeoffView() {
+        $startKey.disabled = true;
+        disableStartButtons();
+        enableControlButtons();
+    }
 
-            $takeoff.disabled = false;
-            $land.disabled = false;
-        }
+    function resetClass($elem, classToAdd, classToRemove) {
+        $elem.classList.remove(classToRemove);
+        $elem.classList.add(classToAdd);        
+    }
 
-        function takeoff() {
-            takeoffView();
-        }
+    function disableElem($elem) {
+        resetClass($elem, 'disabled', 'enabled');
+    }
 
-        function takeoffView() {
-            $startKey.disabled = true;
-            $generateKey.disabled = true;
-            $start.disabled = true;
+    function enableElem($elem) {
+        resetClass($elem, 'enabled', 'disabled');
+    }
 
-            $takeoff.disabled = false;
-            $land.disabled = false;
-        }
+    function disableStartButtons() {
+        disableElem($start);
+        disableElem($generateKey);
+    }
 
-        async function startHealthCheck() {
-            checkStarting = true;
+    function enableStartButtons() {
+        enableElem($start);
+        enableElem($generateKey);
+    }
 
-            async function healthCheck() {
-                await fetch('/healthCheck')
-                    .then(async res => {
-                        checkStarting = false;
-                        console.log('Server become available.');
-                        await startApp();
-                        return res.json();
-                    })
-                    .catch(() => {
-                        checkStarting = true;
-                        console.log('Server unavailable.');
-                    })
-                    .finally(() => {
-                        if (checkStarting) {
-                            setTimeout(healthCheck, HEALTH_CHECK_INTERVAL);
-                        }
-                    });
-               
-            }
-            setTimeout(healthCheck, HEALTH_CHECK_INTERVAL);
+    function disableControlButtons() {
+        disableElem($takeoff);
+        disableElem($land);
+    }
 
-        }
+    function enableControlButtons() {
+        enableElem($takeoff);
+        enableElem($land);
+    }
 
-        async function startApp() {
+    async function startHealthCheck() {
+        checkStarting = true;
 
-            await fetch('/startApp', {
-                method: 'POST',
-                headers: {
-                    'Content-type': 'application/json'
-                },
-                body: JSON.stringify({
-                    startKey: $startKey.value
+        async function healthCheck() {
+            await fetch('/healthCheck')
+                .then(async res => {
+                    checkStarting = false;
+                    console.log('Server become available.');
+                    await startApp();
+                    return res.json();
                 })
+                .catch(() => {
+                    checkStarting = true;
+                    console.log('Server unavailable.');
+                })
+                .finally(() => {
+                    if (checkStarting) {
+                        setTimeout(healthCheck, HEALTH_CHECK_INTERVAL);
+                    }
+                });
+               
+        }
+        setTimeout(healthCheck, HEALTH_CHECK_INTERVAL);
+
+    }
+
+    async function startApp() {
+
+        await fetch('/startApp', {
+            method: 'POST',
+            headers: {
+                'Content-type': 'application/json'
+            },
+            body: JSON.stringify({
+                startKey: $startKey.value
             })
+        })
             .then(res => res.json())
             .then(() => {
-                ready()
+                ready();
 
                 const wsProtocol = 0 <= location.protocol.indexOf('https') ? 'wss' : 'ws';
                 websocket = new WebSocket(`${wsProtocol}://${location.host}/state`);
@@ -120,27 +153,27 @@ window.addEventListener('DOMContentLoaded', () => {
     
                         switch(dataJson.state) {
                         case 'ready':
-                            ready()
+                            ready();
                             break;
     
                         case 'land':
-                            land()
+                            land();
                             break;
                         default:
                             return;
                         }
-    
+                        break;
                     default:
                         return;
                     }
                 };
     
-                websocket.onopen = event => {
+                websocket.onopen = () => {
                     console.log('open');
                 };
     
     
-                websocket.onclose = async event => {
+                websocket.onclose = async () => {
                     readyView();
                     await startHealthCheck();
                 };
@@ -151,33 +184,46 @@ window.addEventListener('DOMContentLoaded', () => {
             });
 
 
+    }
+
+    _click($generateKey, async () => {
+        if (state !== STATE.INIT) {
+            return;
         }
 
-        _click($generateKey, async () => {
+        await fetch('/generateKey')
+            .then(res => res.json())
+            .then(ret => {
+                $startKey.value = ret.startKey;
+            })
+            .catch(e => {
+                console.error(e);
+                alert('Can not generate key. Remote server may fail to authorize me or be unavailable.');
+            });
+    });
 
-            await fetch('/generateKey')
-                    .then(res => res.json())
-                    .then(ret => {
-                        $startKey.value = ret.startKey;
-                    })
-                    .catch(e => {
-                        console.error(e);
-                        alert('Can not generate key. Remote server may fail to authorize me or be unavailable.');
-                    });
+    _click($start, async () => {
+        if (state !== STATE.INIT) {
+            return;
+        }
+        await startApp();
+    });
 
+    _click($takeoff, async () => {
+        if (state !== STATE.LAND && state !== STATE.TAKEOFF) {
+            return;
+        }
+        await fetch('/takeoff').then(res => res.json());
+        takeoff();
+    });
 
-        });
+    _click($land, async () => {
+        if (state !== STATE.LAND && state !== STATE.TAKEOFF) {
+            return;
+        }
+        await fetch('/land').then(res => res.json());
+    });
 
-        _click($start, startApp);
-
-        _click($takeoff, async () => {
-            await fetch('/takeoff').then(res => res.json());
-        });
-
-        _click($land, async () => {
-            await fetch('/land').then(res => res.json());
-        });
-
-        init();
+    init();
 
 });

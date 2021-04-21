@@ -1,31 +1,28 @@
 <html>
     <head>
         <meta charset="UTF-8">
-        <link rel="stylesheet" href="https://yarn.pm/normalize.css"></link>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css" integrity="sha512-NhSC1YmyruXifcj/KFRWoC561YpHpc5Jtzgvbuzx5VozKpWvQ+4nXhPdFgmx8xqexRcpAglTj9sIBWINXa8x5w==" crossorigin="anonymous" />
         <link rel="stylesheet" href="main.css"></link>
     </head>
     <body>
-
-
-        <h1 id="title">ojm-drone-local</h1>
-
-
-        <div id="messageArea"></div>
-
-
-        <div id="startArea">
-            <ul class="startControl">
-                <li>KEY:<input type="text" name="startKey" id="startKey"/></li>
-                <li><button type="button" id="generateKey">generate</button></li>
-                <li><button type="button" id="start">start</button></li>
-            </ul>
+     
+        <div class="start-area">
+            <div class="title">OJM-Drone</div>
+            <div class="start-control-wrapper">
+                <ul class="start-control">
+                    <li><input type="text" name="startKey" id="startKey" class="start-key" value="" placeholder="Please input 'Start Code' or generate."/></li>
+                    <li><div id="start" class="start start-button">START</div></li>
+                    <li><div id="generateKey" class="generate-key start-button">Generate</div></li>
+                </ul>
+            </div>
         </div>
 
+        <div id="messageArea" class="message-area"></div>
 
-        <div id="controlArea">
+        <div class="control-area">
             <ul class="commands">
-                <li><button type="button" id="takeoff">takeoff</button></li>
-                <li><button type="button" id="land">land</button></li>
+                <li><div id="takeoff" class="control-button">Takeoff</div></li>
+                <li><div id="land" class="control-button">Land</div></li>
             </ul>
         </div>
 

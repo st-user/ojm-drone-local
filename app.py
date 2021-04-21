@@ -146,7 +146,6 @@ async def stylesheet(request):
 
 async def request_key():
     headers = { 'Authorization': f'bearer {SECRET}' }
-    print(headers)
     async with aiohttp.ClientSession() as session:
         ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
         async with session.get(f'{SIGNALING_ENDPOINT}/generateKey', headers=headers, ssl=ssl_context) as response:
@@ -198,6 +197,13 @@ async def start_signaling(startKey):
                     if messageType == 'offer':
 
                         params = dataJson['offer']
+
+                        """ Debug code
+                        sdp = params['sdp']
+                        sdps = sdp.split(r'\r\n')
+                        for _sdp in sdps:
+                            print(_sdp)
+                        """
 
                         pc_id = f'PeerConnection({uuid.uuid4()})' 
                         def log_info(msg):

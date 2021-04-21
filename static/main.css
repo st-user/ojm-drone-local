@@ -1,3 +1,5 @@
+@charset 'utf-8';
+
 ul {
     margin: 0;
     padding: 0;
@@ -5,67 +7,121 @@ ul {
 }
 
 body {
+    color: #54636e;
+    font-family: 'Meiryo', 'Meiryo UI', 'Yu Gothic', 'YuGothic', sans-serif;
+    font-size: 16px;
     margin: 0;
     padding: 0;
     width: 100%;
 }
 
-#title {
-    font-size: 36px;
-    margin: auto;
-    width: 480px;
+.start-area {
+    height: 36px;
+    margin-bottom: 12px;
+    min-width: 684px;
+}
+
+.title {
+    font-size: 24px;
     line-height: 1.5;
+    float: left;
+    width: 20%;
+    min-width: 120px;
     text-align: center;
 }
 
-#messageArea {
-    margin: auto;
-    margin-bottom: 12px;
-    max-width: 680px;
+.start-control-wrapper {
+    margin-top: 6px;
+    width: 50%;
+    float: left;
 }
 
-#startArea {
+.start-control {
     margin: auto;
-    margin-bottom: 12px;
-    max-width: 680px;
-}
-
-.startControl {
+    width: 408px;
     overflow: hidden;
 }
 
-.startControl > li {
+.start-control > li {
     float: left;
-    margin-right: 12px;
 }
 
-.startControl button {
+.start-key {
+    font-size: 12px;
+    width: 240px;
+    height: 26px;
+}
+
+.start-button {
+    height: 24px;
+    line-height: 24px;
+    text-align: center;
+    border: 1px solid #585555;
+}
+
+.start {
+    width: 60px;
+}
+
+.generate-key {
+    margin-left: 24px;
     width: 80px;
 }
 
-input[name="startKey"] {
-    width: 240px;
+.start-button.enabled {
+    cursor: pointer;
+    background-color: #fff;
+    color: #353333;
 }
 
-#controlArea {
-    margin: auto;
-    max-width: 680px;
+.start-button.enabled:hover {
+    background-color: #e8f4fa;
+}
+
+.start-button.disabled {
+    background-color: #d7d8db;
+    color: #afadad;
+}
+
+.message-area {
+    margin-bottom: 48px;
 }
 
 .commands {
     margin: auto;
-    width: 200px;
+    max-width: 540px;
+    min-width: 480px;
     overflow: hidden;
 }
 
 .commands > li {
     float: left;
-    margin-right: 12px;
-    width: 80px;
+    margin-right: 36px;
 }
 
-.commands button {
-    width: 80px;
+.control-button {
+    font-size: 24px;
+    width: 180px;
+    height: 180px;
+    border-radius: 6px;
+    line-height: 180px;
+    text-align: center;
+    border: 1px solid #585555;
+}
+
+.control-button.enabled {
+    cursor: pointer;
+    background-color: #fff;
+    color: #353333;
+}
+
+.control-button.enabled:hover {
+    background-color: #e8f4fa;
+}
+
+.control-button.disabled {
+    background-color: #d7d8db;
+    color: #afadad;
 }
 
 .clear {
