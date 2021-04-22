@@ -132,7 +132,12 @@ def get_static_content(filename, mediaType):
 
 async def index(request):
     if rtcConnectionHandler.has_pc():
-        dataQueue.put(os.getpid())
+        waiting = True
+        def _stop():
+            dataQueue.put(os.getpid())
+        asyncio.get_running_loop().call_later(1, _stop)
+
+        return get_static_content('waiting.html', 'text/html')
     return get_static_content('index.html', 'text/html')
 
 
@@ -156,104 +161,114 @@ async def request_key():
             return await response.json()
 
 
-async def start_signaling(startKey):
-    async with aiohttp.ClientSession() as session:
-        ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-        async with session.ws_connect(f'{SIGNALING_ENDPOINT}/signaling?startKey={startKey}', ssl=ssl_context) as ws:
-            async for msg in ws:
-                if msg.type == aiohttp.WSMsgType.TEXT:
+async def start_signaling_connection(session, startKey, connection_result_future):
+    ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    async with session.ws_connect(f'{SIGNALING_ENDPOINT}/signaling?startKey={startKey}', ssl=ssl_context) as ws:
+        connection_result_future.set_result(True)
 
-                    dataJson = json.loads(msg.data)
-                    messageType = dataJson['messageType']
+        async for msg in ws:
+            if msg.type == aiohttp.WSMsgType.TEXT:
 
-                    if messageType == 'iceServerInfo':
-                        if 'iceServerInfo' in dataJson:
-                            iceServerInfo = dataJson['iceServerInfo']
-                            rtcConnectionHandler.set_ice_server_info(iceServerInfo)
+                dataJson = json.loads(msg.data)
+                messageType = dataJson['messageType']
 
-                    if messageType == 'canOffer':
+                if messageType == 'iceServerInfo':
+                    if 'iceServerInfo' in dataJson:
+                        iceServerInfo = dataJson['iceServerInfo']
+                        rtcConnectionHandler.set_ice_server_info(iceServerInfo)
+
+                if messageType == 'canOffer':
+                    canOffer = True
+                    peerConnectionId = dataJson['peerConnectionId']
+
+                    if rtcConnectionHandler.has_pc():
+                        canOffer = False
+                        logging.warn('Connection has already bean created.')
+
+                    if rtcConnectionHandler.should_restart(peerConnectionId):
                         canOffer = True
-                        peerConnectionId = dataJson['peerConnectionId']
-
-                        if rtcConnectionHandler.has_pc():
-                            canOffer = False
-                            logging.warn('Connection has already bean created.')
-
-                        if rtcConnectionHandler.should_restart(peerConnectionId):
-                            canOffer = True
-                            waiting = True
-                            dataQueue.put(os.getpid())
-                            logging.warn('Connection is not available. So retry.')
+                        waiting = True
+                        dataQueue.put(os.getpid())
+                        logging.warn('Connection is not available. So retry.')
                         
-                        logging.debug(f'----- peerConnectionId ----- {peerConnectionId}')
-                        rtcConnectionHandler.set_peer_connection_id(peerConnectionId)
-                        await ws.send_str(json.dumps(
-                            {
-                                'messageType': 'canOffer',
-                                'canOffer': canOffer
-                            }
-                        ))
+                    logging.debug(f'----- peerConnectionId ----- {peerConnectionId}')
+                    rtcConnectionHandler.set_peer_connection_id(peerConnectionId)
+                    await ws.send_str(json.dumps(
+                        {
+                            'messageType': 'canOffer',
+                            'canOffer': canOffer
+                        }
+                    ))
                             
-                    if messageType == 'offer':
+                if messageType == 'offer':
 
-                        params = dataJson['offer']
+                    params = dataJson['offer']
 
-                        """ Debug code
-                        sdp = params['sdp']
-                        sdps = sdp.split(r'\r\n')
-                        for _sdp in sdps:
-                            print(_sdp)
-                        """
+                    """ Debug code
+                    sdp = params['sdp']
+                    sdps = sdp.split(r'\r\n')
+                    for _sdp in sdps:
+                        print(_sdp)
+                    """
 
-                        pc_id = f'PeerConnection({uuid.uuid4()})' 
-                        def log_info(msg):
-                            logging.info(f'{pc_id} {msg}')
+                    pc_id = f'PeerConnection({uuid.uuid4()})' 
+                    def log_info(msg):
+                        logging.info(f'{pc_id} {msg}')
 
-                        pc = rtcConnectionHandler.set_pc()
+                    pc = rtcConnectionHandler.set_pc()
       
-                        @pc.on('datachannel')
-                        def on_datachannel(channel):
-                            messageChannel.set_channel(channel)
-                            @channel.on('message')
-                            def on_message(message):
-                                if isinstance(message, str):
-                                    commandJson = json.loads(message)
-                                    droneManager.send_command_throttled_from_message(commandJson['command'])
+                    @pc.on('datachannel')
+                    def on_datachannel(channel):
+                        messageChannel.set_channel(channel)
+                        @channel.on('message')
+                        def on_message(message):
+                            if isinstance(message, str):
+                                commandJson = json.loads(message)
+                                droneManager.send_command_throttled_from_message(commandJson['command'])
 
-                        @pc.on('connectionstatechange')
-                        async def on_connectionstatechange():
-                            log_info(f'Connection state is {pc.connectionState}')
+                    @pc.on('connectionstatechange')
+                    async def on_connectionstatechange():
+                        log_info(f'Connection state is {pc.connectionState}')
 
-                            if rtcConnectionHandler.is_connected():
-                                await clientMessageSocket.send(json.dumps({
-                                    'messageType': 'stateChange',
-                                    'state': 'land'
-                                }))
+                        if rtcConnectionHandler.is_connected():
+                            await clientMessageSocket.send(json.dumps({
+                                'messageType': 'stateChange',
+                                'state': 'land'
+                            }))
 
-                            if rtcConnectionHandler.should_close():
-                                await clientMessageSocket.send(json.dumps({
-                                    'messageType': 'stateChange',
-                                    'state': 'ready'
-                                }))
+                        if rtcConnectionHandler.should_close():
+                            await clientMessageSocket.send(json.dumps({
+                                'messageType': 'stateChange',
+                                'state': 'ready'
+                            }))
 
-                        droneManager.start()
-                        droneManager.stream_on()
+                    droneManager.start()
+                    droneManager.stream_on()
 
-                        rtcConnectionHandler.add_track(VideoCaptureTrack())
-                        localDescription = await rtcConnectionHandler.set_up_session_description(
-                            sdp=params['sdp'], _type=params['type']
-                        )
+                    rtcConnectionHandler.add_track(VideoCaptureTrack())
+                    localDescription = await rtcConnectionHandler.set_up_session_description(
+                        sdp=params['sdp'], _type=params['type']
+                    )
 
-                        await ws.send_str(json.dumps(
-                            {
-                                'messageType': 'answer',
-                                'answer': {"sdp": localDescription.sdp, "type": localDescription.type}
-                            }
-                        ))
+                    await ws.send_str(json.dumps(
+                        {
+                            'messageType': 'answer',
+                            'answer': {"sdp": localDescription.sdp, "type": localDescription.type}
+                        }
+                    ))
 
-                elif msg.type == aiohttp.WSMsgType.ERROR:
-                    logging.error('error')
-                    break
+            elif msg.type == aiohttp.WSMsgType.ERROR:
+                logging.error('error')
+                break
+
+
+async def start_signaling(startKey, connection_result_future):
+    async with aiohttp.ClientSession() as session:
+        try:
+            await start_signaling_connection(session, startKey, connection_result_future)
+        except aiohttp.client_exceptions.WSServerHandshakeError as e:
+            logging.error(e)
+            connection_result_future.set_result(False)
 
 
 async def generate_key(request):
@@ -270,8 +285,14 @@ async def start_app(request):
 
     params = await request.json()
     startKey = params['startKey']
-    asyncio.ensure_future(start_signaling(startKey))
-    return web.Response(content_type='application/json', text=r"{}")
+    connection_result_future = asyncio.get_running_loop().create_future()
+
+    asyncio.ensure_future(start_signaling(startKey, connection_result_future))
+    is_success = await connection_result_future
+    if is_success:
+        return web.Response(content_type='application/json', text=r"{}")
+    else:
+        return web.Response(content_type='application/json', status=500, text=r"{}")
 
 
 async def health_check(request):
@@ -322,7 +343,6 @@ def main(_dataQueue):
     global dataQueue
     global waiting
     dataQueue = _dataQueue
-    waiting = False
     logging.info(f'Subproc pid {os.getpid():d}')
 
     app = web.Application()
@@ -335,7 +355,10 @@ def main(_dataQueue):
     app.router.add_post('/startApp', start_app)
     app.router.add_get('/healthCheck', health_check)
     app.router.add_get('/takeoff', takeoff)
-    app.router.add_get('/land', land)   
+    app.router.add_get('/land', land)
+
+    waiting = False
+    logging.info(f'End setting up routings.')
 
     web.run_app(
         app, access_log=None, host='0.0.0.0', port=PORT

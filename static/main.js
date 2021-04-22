@@ -105,10 +105,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
         async function healthCheck() {
             await fetch('/healthCheck')
-                .then(async res => {
+                .then(res => {
                     checkStarting = false;
                     console.log('Server become available.');
-                    await startApp();
+                    startApp();
                     return res.json();
                 })
                 .catch(() => {
@@ -126,9 +126,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
     }
 
-    async function startApp() {
+    function startApp() {
 
-        await fetch('/startApp', {
+        fetch('/startApp', {
             method: 'POST',
             headers: {
                 'Content-type': 'application/json'
@@ -137,7 +137,12 @@ window.addEventListener('DOMContentLoaded', () => {
                 startKey: $startKey.value
             })
         })
-            .then(res => res.json())
+            .then(res => {
+                if (res.ok) {
+                    return res.json();
+                }
+                throw new Error('Request does not success.');
+            })
             .then(() => {
                 ready();
 
@@ -181,6 +186,8 @@ window.addEventListener('DOMContentLoaded', () => {
             })
             .catch(e => {
                 console.error(e);
+                alert('Can not start signaling. Remote server may fail to validate the code or be unavailable.');
+                init();
             });
 
 
@@ -202,11 +209,11 @@ window.addEventListener('DOMContentLoaded', () => {
             });
     });
 
-    _click($start, async () => {
+    _click($start, () => {
         if (state !== STATE.INIT) {
             return;
         }
-        await startApp();
+        startApp();
     });
 
     _click($takeoff, async () => {
