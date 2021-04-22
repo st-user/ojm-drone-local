@@ -12,22 +12,22 @@ class RTCConnectionHandler:
     def __init__(self):
         self.pc = None
         self.track = None
-        self.iceServerInfo = None
-        self.peerConnectionId = None
+        self.ice_server_info = None
+        self.peer_connection_id = None
 
-    def set_ice_server_info(self, iceServerInfo):
-        self.iceServerInfo = iceServerInfo
+    def set_ice_server_info(self, ice_server_info):
+        self.ice_server_info = ice_server_info
 
     def set_pc(self):
-        if self.iceServerInfo is None:
+        if self.ice_server_info is None:
             self.pc = RTCPeerConnection()
         else:
             config = [
-                RTCIceServer(self.iceServerInfo['stun']),
+                RTCIceServer(self.ice_server_info['stun']),
                 RTCIceServer(
-                    self.iceServerInfo['turn'],
-                    self.iceServerInfo['credentials']['username'],
-                    self.iceServerInfo['credentials']['password']
+                    self.ice_server_info['turn'],
+                    self.ice_server_info['credentials']['username'],
+                    self.ice_server_info['credentials']['password']
                 )
             ]
             self.pc = RTCPeerConnection(RTCConfiguration(config))
@@ -46,15 +46,15 @@ class RTCConnectionHandler:
             return False
         return self.pc.connectionState in [ 'disconnected', 'failed', 'closed' ]
 
-    def should_restart(self, peerConnectionId):
-        if self.peerConnectionId is None:
+    def should_restart(self, peer_connection_id):
+        if self.peer_connection_id is None:
             return False
-        if self.peerConnectionId != peerConnectionId:
+        if self.peer_connection_id != peer_connection_id:
             return True
         return self.should_close()
 
-    def set_peer_connection_id(self, peerConnectionId):
-        self.peerConnectionId = peerConnectionId
+    def set_peer_connection_id(self, peer_connection_id):
+        self.peer_connection_id = peer_connection_id
 
     def add_track(self, track):
         self.track = track

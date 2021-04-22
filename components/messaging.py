@@ -27,12 +27,12 @@ class MessageChannel:
     def __init__(self):
         self.channel = None
 
-    def send(self, messageType):
+    def send(self, message_type):
         if self.channel is None:
             return
         if self.channel.readyState == 'open':
             self.channel.send(json.dumps({
-                'messageType': messageType
+                'messageType': message_type
             }))
     
     def set_channel(self, channel):

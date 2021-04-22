@@ -85,8 +85,8 @@ class VideoCaptureTrack(VideoStreamTrack):
 
     def __init__(self):
         super().__init__()
-        self.defaultFrame = VideoFrame(width=640, height=480)
-        self.frameBefore = None
+        self.default_frame = VideoFrame(width=640, height=480)
+        self.frame_before = None
         self.acap = VideoCaptureAsync(VIDEO_SOURCE)
         self.acap.start()
 
@@ -98,12 +98,12 @@ class VideoCaptureTrack(VideoStreamTrack):
 
         if ret:
             new_frame = VideoFrame.from_ndarray(frame, format='bgr24')
-            self.frameBefore = new_frame
+            self.frame_before = new_frame
         else:
-            if self.frameBefore is not None:
-                new_frame = self.frameBefore
+            if self.frame_before is not None:
+                new_frame = self.frame_before
             else:    
-                new_frame = self.defaultFrame
+                new_frame = self.default_frame
 
         new_frame.pts = pts
         new_frame.time_base = time_base
@@ -113,28 +113,28 @@ class VideoCaptureTrack(VideoStreamTrack):
 
 # Initialize the components.
 
-clientMessageSocket = messaging.ClientMessageSocket()
-messageChannel = messaging.MessageChannel()
-rtcConnectionHandler = rtc.RTCConnectionHandler()
-droneManager = drone.DroneManager()
+client_message_socket = messaging.ClientMessageSocket()
+message_channel = messaging.MessageChannel()
+rtc_connection_handler = rtc.RTCConnectionHandler()
+drone_manager = drone.DroneManager()
 
 
 # Methods for handling HTTP Requests and WebSocket connections.
 
-def log_request(endpointName):
-    logging.info(f'Request to {endpointName}')
+def log_request(endpoint_name):
+    logging.info(f'Request to {endpoint_name}')
 
 
-def get_static_content(filename, mediaType):
+def get_static_content(filename, media_type):
     content = open(os.path.join(STATIC, filename), 'r').read()
-    return web.Response(content_type=mediaType, text=content)
+    return web.Response(content_type=media_type, text=content)
 
 
 async def index(request):
-    if rtcConnectionHandler.has_pc():
+    if rtc_connection_handler.has_pc():
         waiting = True
         def _stop():
-            dataQueue.put(os.getpid())
+            data_queue.put(os.getpid())
         asyncio.get_running_loop().call_later(1, _stop)
 
         return get_static_content('waiting.html', 'text/html')
@@ -169,40 +169,40 @@ async def start_signaling_connection(session, startKey, connection_result_future
         async for msg in ws:
             if msg.type == aiohttp.WSMsgType.TEXT:
 
-                dataJson = json.loads(msg.data)
-                messageType = dataJson['messageType']
+                data_json = json.loads(msg.data)
+                message_type = data_json['messageType']
 
-                if messageType == 'iceServerInfo':
-                    if 'iceServerInfo' in dataJson:
-                        iceServerInfo = dataJson['iceServerInfo']
-                        rtcConnectionHandler.set_ice_server_info(iceServerInfo)
+                if message_type == 'iceServerInfo':
+                    if 'iceServerInfo' in data_json:
+                        ice_server_info = data_json['iceServerInfo']
+                        rtc_connection_handler.set_ice_server_info(ice_server_info)
 
-                if messageType == 'canOffer':
-                    canOffer = True
-                    peerConnectionId = dataJson['peerConnectionId']
+                if message_type == 'canOffer':
+                    can_offer = True
+                    peer_connection_id = data_json['peerConnectionId']
 
-                    if rtcConnectionHandler.has_pc():
-                        canOffer = False
+                    if rtc_connection_handler.has_pc():
+                        can_offer = False
                         logging.warn('Connection has already bean created.')
 
-                    if rtcConnectionHandler.should_restart(peerConnectionId):
-                        canOffer = True
+                    if rtc_connection_handler.should_restart(peer_connection_id):
+                        can_offer = True
                         waiting = True
-                        dataQueue.put(os.getpid())
+                        data_queue.put(os.getpid())
                         logging.warn('Connection is not available. So retry.')
                         
-                    logging.debug(f'----- peerConnectionId ----- {peerConnectionId}')
-                    rtcConnectionHandler.set_peer_connection_id(peerConnectionId)
+                    logging.debug(f'----- peer_connection_id ----- {peer_connection_id}')
+                    rtc_connection_handler.set_peer_connection_id(peer_connection_id)
                     await ws.send_str(json.dumps(
                         {
                             'messageType': 'canOffer',
-                            'canOffer': canOffer
+                            'canOffer': can_offer
                         }
                     ))
                             
-                if messageType == 'offer':
+                if message_type == 'offer':
 
-                    params = dataJson['offer']
+                    params = data_json['offer']
 
                     """ Debug code
                     sdp = params['sdp']
@@ -215,45 +215,45 @@ async def start_signaling_connection(session, startKey, connection_result_future
                     def log_info(msg):
                         logging.info(f'{pc_id} {msg}')
 
-                    pc = rtcConnectionHandler.set_pc()
+                    pc = rtc_connection_handler.set_pc()
       
                     @pc.on('datachannel')
                     def on_datachannel(channel):
-                        messageChannel.set_channel(channel)
+                        message_channel.set_channel(channel)
                         @channel.on('message')
                         def on_message(message):
                             if isinstance(message, str):
-                                commandJson = json.loads(message)
-                                droneManager.send_command_throttled_from_message(commandJson['command'])
+                                command_json = json.loads(message)
+                                drone_manager.send_command_throttled_from_message(command_json['command'])
 
                     @pc.on('connectionstatechange')
                     async def on_connectionstatechange():
                         log_info(f'Connection state is {pc.connectionState}')
 
-                        if rtcConnectionHandler.is_connected():
-                            await clientMessageSocket.send(json.dumps({
+                        if rtc_connection_handler.is_connected():
+                            await client_message_socket.send(json.dumps({
                                 'messageType': 'stateChange',
                                 'state': 'land'
                             }))
 
-                        if rtcConnectionHandler.should_close():
-                            await clientMessageSocket.send(json.dumps({
+                        if rtc_connection_handler.should_close():
+                            await client_message_socket.send(json.dumps({
                                 'messageType': 'stateChange',
                                 'state': 'ready'
                             }))
 
-                    droneManager.start()
-                    droneManager.stream_on()
+                    drone_manager.start()
+                    drone_manager.stream_on()
 
-                    rtcConnectionHandler.add_track(VideoCaptureTrack())
-                    localDescription = await rtcConnectionHandler.set_up_session_description(
+                    rtc_connection_handler.add_track(VideoCaptureTrack())
+                    local_description = await rtc_connection_handler.set_up_session_description(
                         sdp=params['sdp'], _type=params['type']
                     )
 
                     await ws.send_str(json.dumps(
                         {
                             'messageType': 'answer',
-                            'answer': {"sdp": localDescription.sdp, "type": localDescription.type}
+                            'answer': { "sdp": local_description.sdp, "type": local_description.type }
                         }
                     ))
 
@@ -262,10 +262,10 @@ async def start_signaling_connection(session, startKey, connection_result_future
                 break
 
 
-async def start_signaling(startKey, connection_result_future):
+async def start_signaling(start_key, connection_result_future):
     async with aiohttp.ClientSession() as session:
         try:
-            await start_signaling_connection(session, startKey, connection_result_future)
+            await start_signaling_connection(session, start_key, connection_result_future)
         except aiohttp.client_exceptions.WSServerHandshakeError as e:
             logging.error(e)
             connection_result_future.set_result(False)
@@ -275,8 +275,8 @@ async def generate_key(request):
     log_request('generateKey')
 
     result = await request_key()
-    startKey = result['startKey']
-    content = json.dumps({ 'startKey': startKey })
+    start_key = result['startKey']
+    content = json.dumps({ 'startKey': start_key })
     return web.Response(content_type='application/json', text=content)
 
 
@@ -284,10 +284,10 @@ async def start_app(request):
     log_request('startApp')
 
     params = await request.json()
-    startKey = params['startKey']
+    start_key = params['startKey']
     connection_result_future = asyncio.get_running_loop().create_future()
 
-    asyncio.ensure_future(start_signaling(startKey, connection_result_future))
+    asyncio.ensure_future(start_signaling(start_key, connection_result_future))
     is_success = await connection_result_future
     if is_success:
         return web.Response(content_type='application/json', text=r"{}")
@@ -306,8 +306,8 @@ async def health_check(request):
 async def takeoff(request):
     log_request('takeoff')
 
-    result = droneManager.send_command('takeoff')
-    messageChannel.send('takeoff')
+    result = drone_manager.send_command('takeoff')
+    message_channel.send('takeoff')
 
     return web.Response(content_type='application/json', text=r"{}")
 
@@ -315,8 +315,8 @@ async def takeoff(request):
 async def land(request):
     log_request('land')
 
-    result = droneManager.send_command('land')
-    messageChannel.send('land')
+    result = drone_manager.send_command('land')
+    message_channel.send('land')
 
     return web.Response(content_type='application/json', text=r"{}")
 
@@ -326,7 +326,7 @@ async def client_ws_handler(request):
     ws = web.WebSocketResponse()
     await ws.prepare(request)
 
-    clientMessageSocket.set_ws(ws)
+    client_message_socket.set_ws(ws)
     async for msg in ws:
         if msg.type == aiohttp.WSMsgType.TEXT:
             logging.warn(f'This client does not handle incoming messages. --{msg.data}--')
@@ -334,15 +334,15 @@ async def client_ws_handler(request):
 
 # Main routines.
 
-def main(_dataQueue):
+def main(_data_queue):
 
     """
         The main routine of this application.
     """
 
-    global dataQueue
+    global data_queue
     global waiting
-    dataQueue = _dataQueue
+    data_queue = _data_queue
     logging.info(f'Subproc pid {os.getpid():d}')
 
     app = web.Application()
@@ -374,13 +374,13 @@ def do_main():
     """
 
     while True:
-        dataQueue = mp.Queue()
-        p = mp.Process(target=main, args=(dataQueue,))
+        data_queue = mp.Queue()
+        p = mp.Process(target=main, args=(data_queue,))
         try:
             logging.info('Start proc.')
             p.start()
-            stoppedPid = dataQueue.get()
-            logging.info(f'End proc({stoppedPid:d}).')
+            stopped_pid = data_queue.get()
+            logging.info(f'End proc({stopped_pid}).')
             p.kill()
         finally:
             logging.info('Kill proc.')

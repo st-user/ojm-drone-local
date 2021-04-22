@@ -59,16 +59,16 @@ class DroneManager:
     def __init__(self):
         self.socket = None
         self.recv_server = None
-        self.isInitialized = False
-        self.throttleTimestamp = None
+        self.is_initialized = False
+        self.throttle_timestamp = None
 
     def start(self):
-        if self.isInitialized:
+        if self.is_initialized:
             return
         logging.info('Drone initialized.')
         command_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket = command_socket
-        self.isInitialized = True
+        self.is_initialized = True
         self.send_command('command')
         asyncio.ensure_future(self.ping_to_drone())
         asyncio.ensure_future(self.start_server())
@@ -78,7 +78,7 @@ class DroneManager:
         logging.info("streamon")
 
     async def ping_to_drone(self):
-        while self.isInitialized:
+        while self.is_initialized:
             await asyncio.sleep(5)
             self.send_command('command')
             self.print_drone_status()
@@ -99,16 +99,16 @@ class DroneManager:
         if message is None:
             return
         props = message.split(';')
-        propDict = dict()
+        prop_dict = dict()
         for prop in props:
             _prop = prop.split(':')
             if len(_prop) != 2:
                 continue
             key = _prop[0]
             value = _prop[1]
-            propDict[key] = value
-        if 'bat' in propDict:
-            logging.info(f"Battery level {propDict['bat']}%")
+            prop_dict[key] = value
+        if 'bat' in prop_dict:
+            logging.info(f"Battery level {prop_dict['bat']}%")
         
     def send_command(self, command):
         logging.info(f'Send command [{command}]')  
@@ -118,11 +118,11 @@ class DroneManager:
 
     def send_command_throttled(self, command):
         current_timestamp = time.perf_counter()
-        if self.throttleTimestamp is None or (0.5 <= current_timestamp - self.throttleTimestamp):
+        if self.throttle_timestamp is None or (0.5 <= current_timestamp - self.throttle_timestamp):
             self.send_command(command)
         else:
             logging.info('Too offen. Ingnore the command[{command}].')
-        self.throttleTimestamp = current_timestamp        
+        self.throttle_timestamp = current_timestamp        
 
     def send_command_throttled_from_message(self, message):
         self.send_command_throttled(DRONE_COMMANDS[message])
