@@ -29,7 +29,7 @@ USE_DRONE = drone.use()
 if USE_DRONE:
     VIDEO_SOURCE = 'udp://127.0.0.1:11111'
 else:
-    VIDEO_SOURCE = f'{ROOT}/.resources/capture.webm'
+    VIDEO_SOURCE = os.path.join(ROOT, '.resources', 'capture.webm')
 
 
 logging.info(r"Loads 'app.py' module")
