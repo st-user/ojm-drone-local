@@ -1,16 +1,12 @@
 import aiohttp
 import asyncio
-import cv2
 import json
 import logging
 import os
 import ssl
-import threading
 import uuid
 
 from aiohttp import web
-from aiortc import VideoStreamTrack
-from av import VideoFrame
 from dotenv import dotenv_values
 
 from components import drone, messaging, rtc, video
