@@ -7,7 +7,7 @@ logging.basicConfig(level=logging.INFO)
 logging.info(r"Loads 'run.py' module")
 
 
-def do_main():
+def do_main() -> None:
 
     """
         Runs the main routine of this application.
@@ -20,7 +20,7 @@ def do_main():
     mp.set_start_method('spawn')
     import do_app
     while True:
-        data_queue = mp.Queue()
+        data_queue: mp.Queue = mp.Queue()
         p = mp.Process(target=do_app.app_main, args=(data_queue,))
         try:
             logging.info('Start proc.')

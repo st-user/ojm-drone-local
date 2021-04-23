@@ -1,9 +1,12 @@
+from . import video
+
 from aiortc import (
     RTCPeerConnection,
     RTCSessionDescription,
     RTCConfiguration,
     RTCIceServer
 )
+from typing import Any, Dict, NoReturn, Optional, Union, Tuple
 
 
 class RTCConnectionHandler:
@@ -15,62 +18,72 @@ class RTCConnectionHandler:
         such as handling offer/answer, checking the connection state and so on.
     """
 
-    def __init__(self):
-        self.pc = None
-        self.track = None
-        self.ice_server_info = None
-        self.peer_connection_id = None
+    def __init__(self) -> None:
+        self._pc: Optional[RTCPeerConnection] = None
+        self._track: Optional[video.VideoCaptureTrack] = None
+        self._ice_server_info:  Optional[Dict[str, Any]] = None
+        self._peer_connection_id: Optional[int] = None
 
-    def set_ice_server_info(self, ice_server_info):
-        self.ice_server_info = ice_server_info
+    def set_ice_server_info(self, ice_server_info: Dict[str, Any]) -> None:
+        self._ice_server_info = ice_server_info
 
-    def set_pc(self):
-        if self.ice_server_info is None:
-            self.pc = RTCPeerConnection()
+    def set_pc(self) -> RTCPeerConnection:
+        if self._ice_server_info is None:
+            self._pc = RTCPeerConnection()
         else:
             config = [
-                RTCIceServer(self.ice_server_info['stun']),
+                RTCIceServer(self._ice_server_info['stun']),
                 RTCIceServer(
-                    self.ice_server_info['turn'],
-                    self.ice_server_info['credentials']['username'],
-                    self.ice_server_info['credentials']['password']
+                    self._ice_server_info['turn'],
+                    self._ice_server_info['credentials']['username'],
+                    self._ice_server_info['credentials']['password']
                 )
             ]
-            self.pc = RTCPeerConnection(RTCConfiguration(config))
-        return self.pc
+            self._pc = RTCPeerConnection(RTCConfiguration(config))
+        return self._pc
 
-    def has_pc(self):
-        return self.pc is not None
+    def has_pc(self) -> bool:
+        return self._pc is not None
 
-    def is_connected(self):
-        if self.pc is None:
+    def is_connected(self) -> bool:
+        if self._pc is None:
             return False
-        return self.pc.connectionState == 'connected'
+        return self._pc.connectionState == 'connected'
 
-    def should_close(self):
-        if self.pc is None:
+    def should_close(self) -> bool:
+        if self._pc is None:
             return False
-        return self.pc.connectionState in [
+        return self._pc.connectionState in [
                         'disconnected', 'failed', 'closed'
                     ]
 
-    def should_restart(self, peer_connection_id):
-        if self.peer_connection_id is None:
+    def should_restart(self, peer_connection_id: int) -> bool:
+        if self._peer_connection_id is None:
             return False
-        if self.peer_connection_id != peer_connection_id:
+        if self._peer_connection_id != peer_connection_id:
             return True
         return self.should_close()
 
-    def set_peer_connection_id(self, peer_connection_id):
-        self.peer_connection_id = peer_connection_id
+    def set_peer_connection_id(self, peer_connection_id: int) -> None:
+        self._peer_connection_id = peer_connection_id
 
-    def add_track(self, track):
-        self.track = track
-        self.pc.addTrack(track)
+    def add_track(self, track: video.VideoCaptureTrack) -> None:
+        self._track = track
+        if self._pc is not None:
+            self._pc.addTrack(track)
 
-    async def set_up_session_description(self, sdp, _type):
+    async def set_up_session_description(
+        self, sdp: str, _type: str
+    ) -> Dict[str, str]:
+
+        if self._pc is None:
+            raise ValueError('RTCPeerConnection is None')
+
         offer = RTCSessionDescription(sdp=sdp, type=_type)
-        await self.pc.setRemoteDescription(offer)
-        answer = await self.pc.createAnswer()
-        await self.pc.setLocalDescription(answer)
-        return self.pc.localDescription
+        await self._pc.setRemoteDescription(offer)
+        answer = await self._pc.createAnswer()
+        await self._pc.setLocalDescription(answer)
+        return {
+            'sdp': self._pc.localDescription.sdp,
+            'type': self._pc.localDescription.type
+        }
