@@ -1,5 +1,6 @@
 import json
 
+
 class ClientMessageSocket:
 
     """
@@ -34,6 +35,6 @@ class MessageChannel:
             self.channel.send(json.dumps({
                 'messageType': message_type
             }))
-    
+
     def set_channel(self, channel):
         self.channel = channel

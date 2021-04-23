@@ -30,6 +30,7 @@ DRONE_COMMANDS['ccw'] = f'ccw {ROTATION_SPEED}'
 def use():
     return USE_DRONE
 
+
 class AsyncDgramServerProtocol:
 
     """
@@ -41,7 +42,7 @@ class AsyncDgramServerProtocol:
 
     def datagram_received(self, data, addr):
         self.message = data.decode()
-    
+
     def connection_lost(self, exec):
         if self.transport is None:
             return
@@ -52,8 +53,9 @@ class DroneManager:
 
     """
         A Component for controling a drone(Tello).
-        This class provides the functionalities to manage the drone 
-        such as sending messages to the drone, receiveing the state information from the drone and so on.
+        This class provides the functionalities to manage the drone
+        such as sending messages to the drone,
+        receiveing the state information from the drone and so on.
     """
 
     def __init__(self):
@@ -91,7 +93,7 @@ class DroneManager:
                 lambda: self.recv_server,
                 local_addr=(LISTENING_IP, LISTENING_PORT)
             )
-    
+
     def print_drone_status(self):
         if self.recv_server is None:
             return
@@ -109,9 +111,9 @@ class DroneManager:
             prop_dict[key] = value
         if 'bat' in prop_dict:
             logging.info(f"Battery level {prop_dict['bat']}%")
-        
+
     def send_command(self, command):
-        logging.info(f'Send command [{command}]')  
+        logging.info(f'Send command [{command}]')
 
         if USE_DRONE:
             self.socket.sendto(command.encode('utf-8'), (TELLO_IP, TELLO_PORT))
@@ -122,8 +124,7 @@ class DroneManager:
             self.send_command(command)
         else:
             logging.info('Too offen. Ingnore the command[{command}].')
-        self.throttle_timestamp = current_timestamp        
+        self.throttle_timestamp = current_timestamp
 
     def send_command_throttled_from_message(self, message):
         self.send_command_throttled(DRONE_COMMANDS[message])
-

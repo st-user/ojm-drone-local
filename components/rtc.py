@@ -1,11 +1,17 @@
-from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, RTCIceServer
+from aiortc import (
+    RTCPeerConnection,
+    RTCSessionDescription,
+    RTCConfiguration,
+    RTCIceServer
+)
 
 
 class RTCConnectionHandler:
 
     """
         A Component handling WebRTC Connection(RTCPeerConnection).
-        This class provides the functionalities to manage the WebRTC Connection to the remote peer
+        This class provides the functionalities
+        to manage the WebRTC Connection to the remote peer
         such as handling offer/answer, checking the connection state and so on.
     """
 
@@ -32,7 +38,7 @@ class RTCConnectionHandler:
             ]
             self.pc = RTCPeerConnection(RTCConfiguration(config))
         return self.pc
-    
+
     def has_pc(self):
         return self.pc is not None
 
@@ -44,7 +50,9 @@ class RTCConnectionHandler:
     def should_close(self):
         if self.pc is None:
             return False
-        return self.pc.connectionState in [ 'disconnected', 'failed', 'closed' ]
+        return self.pc.connectionState in [
+                        'disconnected', 'failed', 'closed'
+                    ]
 
     def should_restart(self, peer_connection_id):
         if self.peer_connection_id is None:

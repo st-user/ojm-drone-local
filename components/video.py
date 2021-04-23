@@ -4,6 +4,7 @@ import threading
 from aiortc import VideoStreamTrack
 from av import VideoFrame
 
+
 class VideoCaptureAsync:
 
     """
@@ -13,7 +14,9 @@ class VideoCaptureAsync:
     def __init__(self, src):
         self.cap = cv2.VideoCapture(src)
         self.grabbed = False
-        self.frame = VideoFrame(width=640, height=480).to_ndarray(format='bgr24')
+        self.frame = VideoFrame(width=640, height=480).to_ndarray(
+                                                        format='bgr24'
+                                                      )
         self.started = False
         self.read_lock = threading.Lock()
 
@@ -30,7 +33,7 @@ class VideoCaptureAsync:
             with self.read_lock:
                 self.grabbed = grabbed
                 self.frame = frame
-            
+
     def read(self):
         with self.read_lock:
             frame = self.frame
@@ -40,7 +43,7 @@ class VideoCaptureAsync:
     def stop(self):
         self.started = False
         self.thread.join()
-       
+
 
 class VideoCaptureTrack(VideoStreamTrack):
 
@@ -69,7 +72,7 @@ class VideoCaptureTrack(VideoStreamTrack):
         else:
             if self.frame_before is not None:
                 new_frame = self.frame_before
-            else:    
+            else:
                 new_frame = self.default_frame
 
         new_frame.pts = pts

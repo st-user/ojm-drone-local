@@ -6,12 +6,15 @@ logging.basicConfig(level=logging.INFO)
 
 logging.info(r"Loads 'run.py' module")
 
+
 def do_main():
 
     """
         Runs the main routine of this application.
-        The main routine is called on the forked proccess 
-        so that it can be restarted(the old process is killed and a new one starts) automatically.
+        The main routine is called on the forked proccess
+        so that it can be restarted
+        (the old process is killed and a new one starts)
+        automatically.
     """
 
     mp.set_start_method('spawn')
