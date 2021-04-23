@@ -3,11 +3,9 @@ import asyncio
 import cv2
 import json
 import logging
-import multiprocessing as mp
 import os
 import ssl
 import threading
-import time
 import uuid
 
 from aiohttp import web
@@ -15,14 +13,13 @@ from aiortc import VideoStreamTrack
 from av import VideoFrame
 from dotenv import dotenv_values
 
-from components import drone, messaging, rtc
+from components import drone, messaging, rtc, video
 
 
 ROOT = os.path.dirname(__file__)
 
 
 my_env = dotenv_values('.env')
-logging.basicConfig(level=logging.INFO)
 
 
 PORT = int(my_env['PORT'])
@@ -33,83 +30,11 @@ SECRET = my_env['SECRET']
 SIGNALING_ENDPOINT = my_env['SIGNALING_ENDPOINT']
 
 USE_DRONE = drone.use()
-VIDEO_SOURCE = 'udp://127.0.0.1:11111' if USE_DRONE else f'{ROOT}.resources/capture.webm'
+VIDEO_SOURCE = 'udp://127.0.0.1:11111' if USE_DRONE else f'{ROOT}/.resources/capture.webm'
 
 
+logging.info(r"Loads 'app.py' module")
 
-class VideoCaptureAsync:
-
-    """
-        An OpenCV VideoCapture Wrapper for reading video frames asynchronously.
-    """
-
-    def __init__(self, src):
-        self.cap = cv2.VideoCapture(src)
-        self.grabbed = False
-        self.frame = VideoFrame(width=640, height=480).to_ndarray(format='bgr24')
-        self.started = False
-        self.read_lock = threading.Lock()
-
-    def start(self):
-        self.started = True
-        self.thread = threading.Thread(target=self.update, args={})
-        self.thread.daemon = True
-        self.thread.start()
-        return self
-
-    def update(self):
-        while self.started:
-            grabbed, frame = self.cap.read()
-            with self.read_lock:
-                self.grabbed = grabbed
-                self.frame = frame
-            
-    def read(self):
-        with self.read_lock:
-            frame = self.frame
-            grabbed = self.grabbed
-        return grabbed, frame
-
-    def stop(self):
-        self.started = False
-        self.thread.join()
-       
-
-class VideoCaptureTrack(VideoStreamTrack):
-
-    """
-        A VideoStreamTrack capturing a video stream by using VideoCaptureAsync.
-    """
-
-    kind = 'video'
-
-    def __init__(self):
-        super().__init__()
-        self.default_frame = VideoFrame(width=640, height=480)
-        self.frame_before = None
-        self.acap = VideoCaptureAsync(VIDEO_SOURCE)
-        self.acap.start()
-
-    async def recv(self):
-
-        pts, time_base = await self.next_timestamp()
-
-        ret, frame = self.acap.read()
-
-        if ret:
-            new_frame = VideoFrame.from_ndarray(frame, format='bgr24')
-            self.frame_before = new_frame
-        else:
-            if self.frame_before is not None:
-                new_frame = self.frame_before
-            else:    
-                new_frame = self.default_frame
-
-        new_frame.pts = pts
-        new_frame.time_base = time_base
-
-        return new_frame
-  
 
 # Initialize the components.
 
@@ -245,7 +170,7 @@ async def start_signaling_connection(session, startKey, connection_result_future
                     drone_manager.start()
                     drone_manager.stream_on()
 
-                    rtc_connection_handler.add_track(VideoCaptureTrack())
+                    rtc_connection_handler.add_track(video.VideoCaptureTrack(VIDEO_SOURCE))
                     local_description = await rtc_connection_handler.set_up_session_description(
                         sdp=params['sdp'], _type=params['type']
                     )
@@ -365,27 +290,3 @@ def main(_data_queue):
     )
 
 
-def do_main():
-
-    """
-        Runs the main routine of this application.
-        The main routine is called on the forked proccess 
-        so that it can be restarted(the old process is killed and a new one starts) automatically.
-    """
-
-    while True:
-        data_queue = mp.Queue()
-        p = mp.Process(target=main, args=(data_queue,))
-        try:
-            logging.info('Start proc.')
-            p.start()
-            stopped_pid = data_queue.get()
-            logging.info(f'End proc({stopped_pid}).')
-            p.kill()
-        finally:
-            logging.info('Kill proc.')
-            time.sleep(3)
-
-
-if __name__ == '__main__':
-    do_main()
