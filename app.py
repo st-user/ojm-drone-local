@@ -8,27 +8,18 @@ import uuid
 import multiprocessing as mp
 
 from aiohttp import web
-from dotenv import dotenv_values
 
-from components import drone, messaging, rtc, video
+
+from components import drone, messaging, rtc, video, my_env
 from typing import Any, Dict
 
-my_env = dotenv_values('.env')
 
-
-def get_env(key: str, default_value: str = '') -> str:
-    if key in my_env:
-        ret = my_env[key]
-        return ret if ret is not None else default_value
-    return default_value
-
-
-PORT: int = int(get_env('PORT', '8000'))
+PORT: int = int(my_env.get_env('PORT', '8000'))
 ROOT: str = os.path.dirname(__file__)
 STATIC: str = os.path.join(ROOT, 'static')
 
-SECRET: str = get_env('SECRET')
-SIGNALING_ENDPOINT: str = get_env('SIGNALING_ENDPOINT', 'http://localhost:8080')
+SECRET: str = my_env.get_env('SECRET')
+SIGNALING_ENDPOINT: str = my_env.get_env('SIGNALING_ENDPOINT', 'http://localhost:8080')
 
 USE_DRONE: bool = drone.use()
 VIDEO_SOURCE: str = os.path.join(ROOT, '.resources', 'capture.webm')

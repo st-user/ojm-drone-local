@@ -3,19 +3,21 @@ import logging
 import socket
 import time
 
+from . import my_env
 from typing import Any, Dict, Optional
 
-USE_DRONE = True
 
+use_drone_env = my_env.get_env('USE_DRONE', 'False')
+USE_DRONE: bool = False if use_drone_env.lower() == 'false' else bool(use_drone_env)
 
-LISTENING_IP = '0.0.0.0'
-LISTENING_PORT = 8890
+LISTENING_IP: str = '0.0.0.0'
+LISTENING_PORT: int = 8890
 
-TELLO_IP = '192.168.10.1'
-TELLO_PORT = 8889
+TELLO_IP: str = '192.168.10.1'
+TELLO_PORT: str = 8889
 
-MOVE_SPEED = 30
-ROTATION_SPEED = 30
+MOVE_SPEED: int = 30
+ROTATION_SPEED: int = 30
 
 DRONE_COMMANDS: Dict[str, str] = dict()
 DRONE_COMMANDS['forward'] = f'forward {MOVE_SPEED}'
@@ -26,6 +28,8 @@ DRONE_COMMANDS['up'] = f'up {MOVE_SPEED}'
 DRONE_COMMANDS['down'] = f'down {MOVE_SPEED}'
 DRONE_COMMANDS['cw'] = f'cw {ROTATION_SPEED}'
 DRONE_COMMANDS['ccw'] = f'ccw {ROTATION_SPEED}'
+
+logging.info(f'USE_DRONE: {USE_DRONE}')
 
 
 def use() -> bool:
