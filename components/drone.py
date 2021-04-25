@@ -100,7 +100,7 @@ class DroneManager:
         if self._throttle_timestamp is None or (0.5 <= current_timestamp - self._throttle_timestamp):
             self.send_command(command)
         else:
-            logging.info('Too offen. Ingnore the command[{command}].')
+            logging.info(f'Too offen. Ingnore the command[{command}].')
         self._throttle_timestamp = current_timestamp
 
     def send_command_throttled_from_message(self, message: str) -> None:
