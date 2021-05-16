@@ -119,7 +119,9 @@ func (handler *RTCHandler) SetPeerConnectionId(peerConnectionId float64) {
 	handler.peerConnectionId = peerConnectionId
 }
 
-func (handler *RTCHandler) StartConnection(remoteSdp *webrtc.SessionDescription, routineCoordinator *RoutineCoordinator) (*webrtc.SessionDescription, error) {
+func (handler *RTCHandler) StartConnection(
+	remoteSdp *webrtc.SessionDescription,
+	routineCoordinator *RoutineCoordinator) (*webrtc.SessionDescription, error) {
 
 	cap := webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeH264, ClockRate: 90000}
 	videoTrack, err := webrtc.NewTrackLocalStaticSample(cap, "video", "pion")
@@ -168,7 +170,7 @@ func (handler *RTCHandler) StartConnection(remoteSdp *webrtc.SessionDescription,
 					log.Printf("%v", messageJson)
 					dataChannel.SendText(string(data))
 				case <-routineCoordinator.StopSignalChannel:
-					log.Println("Stop DataChannel handler")
+					log.Println("Stop handling dataChannel.")
 					return
 				}
 
@@ -221,7 +223,7 @@ func (handler *RTCHandler) StartConnection(remoteSdp *webrtc.SessionDescription,
 				})
 				latest = time.Now()
 			case <-routineCoordinator.StopSignalChannel:
-				log.Println("Stop Video stream handler")
+				log.Println("Stop sending video stream.")
 				return
 			}
 

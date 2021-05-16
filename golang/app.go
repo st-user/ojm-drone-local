@@ -57,6 +57,9 @@ func generateKey(w http.ResponseWriter, r *http.Request) (*map[string]interface{
 
 func startApp(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, error) {
 
+	routineCoordinator.WaitUitilReleasingSocket()
+	log.Println("End waiting for the waitgroup to be done.")
+
 	routineCoordinator.InitRoutineCoordinator(false)
 	decoder := json.NewDecoder(r.Body)
 	bodyJson := make(map[string]string)

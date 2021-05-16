@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net"
 	"strings"
@@ -49,9 +48,6 @@ func (drone *Drone) sendCommandFromMessage(message string, conn *net.Conn) {
 
 func (drone *Drone) Start(routineCoordinator *RoutineCoordinator) {
 
-	routineCoordinator.WaitUitilReleasingSocket()
-	log.Println("after wait!!!!!")
-
 	pingTicker := time.NewTicker(10 * time.Second)
 	stateInfoChannel := make(chan map[string]string)
 	go func() {
@@ -73,10 +69,11 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator) {
 				drone.sendCommandFromMessage(command, &commandConn)
 			case <-pingTicker.C:
 				sendCommand("command", commandConn)
+				sendCommand("streamon", commandConn)
 			case stateInfo := <-stateInfoChannel:
 				log.Printf("Battery level %v%%", stateInfo["bat"])
 			case <-routineCoordinator.StopSignalChannel:
-				log.Println("Stop Drone event loop.")
+				log.Println("Stop drone event loop.")
 				return
 			}
 
@@ -98,9 +95,8 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator) {
 
 		routineCoordinator.AddWaitGtoupUitilReleasingSocket()
 		defer func() {
-			log.Println("close !!! 1 pre")
 			videoConn.Close()
-			log.Println("close !!! 1")
+			log.Println("Connection for video streaming has closed.")
 			routineCoordinator.DoneWaitGtoupUitilReleasingSocket()
 		}()
 
@@ -120,12 +116,12 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator) {
 
 			select {
 			case <-routineCoordinator.StopSignalChannel:
-				fmt.Println("Stop capturing video stream")
+				log.Println("Stop capturing video stream.")
 				return
 			default:
 				n, _, err := videoConn.ReadFrom(inboundUDPPacket)
 				if err != nil {
-					log.Printf("error during read: %s", err)
+					log.Println(err)
 					continue
 				}
 				data := inboundUDPPacket[:n]
@@ -161,7 +157,7 @@ func (drone *Drone) parseSteteResponse(stateInfoChannel *chan map[string]string,
 	routineCoordinator.AddWaitGtoupUitilReleasingSocket()
 	defer func() {
 		stateConn.Close()
-		log.Println("close !!! 2")
+		log.Println("Connection for checking drone state has closed.")
 		routineCoordinator.DoneWaitGtoupUitilReleasingSocket()
 	}()
 	inboundUDPPacket := make([]byte, 1600) // UDP MTU
@@ -170,13 +166,13 @@ func (drone *Drone) parseSteteResponse(stateInfoChannel *chan map[string]string,
 
 		select {
 		case <-routineCoordinator.StopSignalChannel:
-			log.Println("Stop parsing drone state")
+			log.Println("Stop parsing drone state.")
 			return
 		default:
 
 			n, _, err := stateConn.ReadFrom(inboundUDPPacket)
 			if err != nil {
-				log.Printf("error during read: %s", err)
+				log.Println(err)
 				continue
 			}
 			duration := time.Since(last)
