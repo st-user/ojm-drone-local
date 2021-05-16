@@ -93,11 +93,11 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator) {
 			return
 		}
 
-		routineCoordinator.AddWaitGtoupUitilReleasingSocket()
+		routineCoordinator.AddWaitGroupUntilReleasingSocket()
 		defer func() {
 			videoConn.Close()
 			log.Println("Connection for video streaming has closed.")
-			routineCoordinator.DoneWaitGtoupUitilReleasingSocket()
+			routineCoordinator.DoneWaitGroupUntilReleasingSocket()
 		}()
 
 		inboundUDPPacket := make([]byte, 1600) // UDP MTU
@@ -154,11 +154,11 @@ func (drone *Drone) parseSteteResponse(stateInfoChannel *chan map[string]string,
 		return
 	}
 
-	routineCoordinator.AddWaitGtoupUitilReleasingSocket()
+	routineCoordinator.AddWaitGroupUntilReleasingSocket()
 	defer func() {
 		stateConn.Close()
 		log.Println("Connection for checking drone state has closed.")
-		routineCoordinator.DoneWaitGtoupUitilReleasingSocket()
+		routineCoordinator.DoneWaitGroupUntilReleasingSocket()
 	}()
 	inboundUDPPacket := make([]byte, 1600) // UDP MTU
 	last := time.Now()

@@ -11,7 +11,7 @@ type RoutineCoordinator struct {
 	DroneStateChannel             chan string
 	StopSignalChannel             chan struct{}
 	IsStopped                     bool
-	waitGtoupUitilReleasingSocket sync.WaitGroup
+	waitGroupUntilReleasingSocket sync.WaitGroup
 }
 
 func (r *RoutineCoordinator) InitRoutineCoordinator(force bool) {
@@ -36,16 +36,16 @@ func (r *RoutineCoordinator) StopApp() {
 	close(r.StopSignalChannel)
 }
 
-func (r *RoutineCoordinator) WaitUitilReleasingSocket() {
-	r.waitGtoupUitilReleasingSocket.Wait()
+func (r *RoutineCoordinator) WaitUntilReleasingSocket() {
+	r.waitGroupUntilReleasingSocket.Wait()
 }
 
-func (r *RoutineCoordinator) AddWaitGtoupUitilReleasingSocket() {
-	r.waitGtoupUitilReleasingSocket.Add(1)
+func (r *RoutineCoordinator) AddWaitGroupUntilReleasingSocket() {
+	r.waitGroupUntilReleasingSocket.Add(1)
 }
 
-func (r *RoutineCoordinator) DoneWaitGtoupUitilReleasingSocket() {
-	r.waitGtoupUitilReleasingSocket.Done()
+func (r *RoutineCoordinator) DoneWaitGroupUntilReleasingSocket() {
+	r.waitGroupUntilReleasingSocket.Done()
 }
 
 func (r *RoutineCoordinator) ChangeDroneState(command string) {
