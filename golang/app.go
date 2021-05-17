@@ -153,18 +153,19 @@ func startSignalingConnection(connection *websocket.Conn) {
 
 				drone := NewDrone()
 				drone.Start(&routineCoordinator)
-				answer, err := rtcHandler.StartConnection(sdp, &routineCoordinator)
+				_, err = rtcHandler.StartConnection(sdp, &routineCoordinator)
 
 				if err != nil {
 					log.Println(err)
 					continue
 				}
+				localDescription := rtcHandler.rtcPeerConnection.LocalDescription()
 
 				connection.WriteJSON(map[string]interface{}{
 					"messageType": "answer",
 					"answer": map[string]string{
-						"sdp":  answer.SDP,
-						"type": answer.Type.String(),
+						"sdp":  localDescription.SDP,
+						"type": localDescription.Type.String(),
 					},
 				})
 			}
