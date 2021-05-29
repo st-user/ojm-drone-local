@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/pion/rtcp"
 	"github.com/pion/webrtc/v3"
 	"github.com/pion/webrtc/v3/pkg/media"
 )
@@ -129,11 +130,40 @@ func (handler *RTCHandler) StartConnection(
 		log.Println(err)
 		return &webrtc.SessionDescription{}, err
 	}
-	_, err = handler.rtcPeerConnection.AddTrack(videoTrack)
+
+	rtpSender, err := handler.rtcPeerConnection.AddTrack(videoTrack)
 	if err != nil {
 		log.Println(err)
 		return &webrtc.SessionDescription{}, err
 	}
+
+	go func() {
+		rtcpBuf := make([]byte, 1500)
+
+		select {
+		case <-routineCoordinator.StopSignalChannel:
+			log.Println("Stops WebRTC event loop.")
+			return
+		default:
+			for {
+				n, _, rtcpErr := rtpSender.Read(rtcpBuf)
+				if rtcpErr != nil {
+					return
+				}
+				rtcpPacket := rtcpBuf[:n]
+
+				pkts, err := rtcp.Unmarshal(rtcpPacket)
+				if err != nil {
+					log.Println(err)
+					return
+				}
+
+				for _, pkt := range pkts {
+					routineCoordinator.SendRTCPPacketChannel(pkt)
+				}
+			}
+		}
+	}()
 
 	handler.rtcPeerConnection.OnICEConnectionStateChange(func(connectionState webrtc.ICEConnectionState) {
 		log.Printf("Connection State has changed %s \n", connectionState.String())
@@ -178,14 +208,17 @@ func (handler *RTCHandler) StartConnection(
 		})
 
 		dataChannel.OnMessage(func(msg webrtc.DataChannelMessage) {
-			messageJson := make(map[string]string)
+			messageJson := make(map[string][]byte)
 			err := json.Unmarshal(msg.Data, &messageJson)
 			if err != nil {
 				return
 			}
 			message := messageJson["command"]
 			log.Println(message)
-			routineCoordinator.SendDroneCommandChannel(message)
+			routineCoordinator.SendDroneCommandChannel(DroneCommand{
+				CommandType: "vector",
+				Command:     message,
+			})
 		})
 
 	})

@@ -2,26 +2,34 @@ package main
 
 import (
 	"sync"
+
+	"github.com/pion/rtcp"
 )
 
 type RoutineCoordinator struct {
-	DroneCommandChannel           chan string
+	DroneCommandChannel           chan DroneCommand
 	DroneFrameChannel             chan []byte
 	DataChannelMessageChannel     chan string
 	DroneStateChannel             chan string
+	RTCPPacketChannel             chan rtcp.Packet
 	StopSignalChannel             chan struct{}
 	IsStopped                     bool
 	waitGroupUntilReleasingSocket sync.WaitGroup
 }
 
+type DroneCommand struct {
+	CommandType string
+	Command     interface{}
+}
+
 func (r *RoutineCoordinator) InitRoutineCoordinator(force bool) {
 
 	if r.IsStopped || force {
-		r.DroneCommandChannel = make(chan string)
+		r.DroneCommandChannel = make(chan DroneCommand)
 		r.DroneFrameChannel = make(chan []byte)
 		r.DataChannelMessageChannel = make(chan string)
 		r.DroneStateChannel = make(chan string)
-		r.DroneCommandChannel = make(chan string)
+		r.RTCPPacketChannel = make(chan rtcp.Packet)
 		r.StopSignalChannel = make(chan struct{})
 	}
 	r.IsStopped = false
@@ -33,6 +41,7 @@ func (r *RoutineCoordinator) StopApp() {
 	close(r.DroneFrameChannel)
 	close(r.DataChannelMessageChannel)
 	close(r.DroneStateChannel)
+	close(r.RTCPPacketChannel)
 	close(r.StopSignalChannel)
 }
 
@@ -48,12 +57,7 @@ func (r *RoutineCoordinator) DoneWaitGroupUntilReleasingSocket() {
 	r.waitGroupUntilReleasingSocket.Done()
 }
 
-func (r *RoutineCoordinator) ChangeDroneState(command string) {
-	r.DroneCommandChannel <- command
-	r.DataChannelMessageChannel <- command
-}
-
-func (r *RoutineCoordinator) SendDroneCommandChannel(data string) {
+func (r *RoutineCoordinator) SendDroneCommandChannel(data DroneCommand) {
 	if !r.IsStopped {
 		r.DroneCommandChannel <- data
 	}
@@ -74,6 +78,12 @@ func (r *RoutineCoordinator) SendDataChannelMessageChannel(data string) {
 func (r *RoutineCoordinator) SendDroneStateChannel(data string) {
 	if !r.IsStopped {
 		r.DroneStateChannel <- data
+	}
+}
+
+func (r *RoutineCoordinator) SendRTCPPacketChannel(data rtcp.Packet) {
+	if !r.IsStopped {
+		r.RTCPPacketChannel <- data
 	}
 }
 

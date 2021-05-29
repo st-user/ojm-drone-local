@@ -194,7 +194,10 @@ func state(server *OutboundRelayMessageServer) func(w http.ResponseWriter, r *ht
 
 func takeoff(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, error) {
 
-	routineCoordinator.ChangeDroneState("takeoff")
+	routineCoordinator.SendDataChannelMessageChannel("takeoff")
+	routineCoordinator.SendDroneCommandChannel(DroneCommand{
+		CommandType: "takeoff",
+	})
 
 	responseBody := map[string]interface{}{}
 	return &responseBody, nil
@@ -202,7 +205,10 @@ func takeoff(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, e
 
 func land(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, error) {
 
-	routineCoordinator.ChangeDroneState("land")
+	routineCoordinator.SendDataChannelMessageChannel("land")
+	routineCoordinator.SendDroneCommandChannel(DroneCommand{
+		CommandType: "land",
+	})
 
 	responseBody := map[string]interface{}{}
 	return &responseBody, nil
