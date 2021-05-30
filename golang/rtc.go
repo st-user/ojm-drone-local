@@ -208,7 +208,7 @@ func (handler *RTCHandler) StartConnection(
 		})
 
 		dataChannel.OnMessage(func(msg webrtc.DataChannelMessage) {
-			messageJson := make(map[string][]byte)
+			messageJson := make(map[string]MotionVector)
 			err := json.Unmarshal(msg.Data, &messageJson)
 			if err != nil {
 				return

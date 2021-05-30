@@ -12,7 +12,8 @@ import (
 )
 
 var ENV = loadEnv()
-var routineCoordinator RoutineCoordinator
+var routineCoordinator = RoutineCoordinator{}
+var Log = NewLogger(ENV["LOG_LEVEL"])
 
 func index(statics *Statics) func(w http.ResponseWriter, r *http.Request) {
 

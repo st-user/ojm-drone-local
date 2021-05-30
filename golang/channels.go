@@ -22,6 +22,13 @@ type DroneCommand struct {
 	Command     interface{}
 }
 
+type MotionVector struct {
+	X float32
+	Y float32
+	Z float32
+	R float32
+}
+
 func (r *RoutineCoordinator) InitRoutineCoordinator(force bool) {
 
 	if r.IsStopped || force {
@@ -91,4 +98,8 @@ func (r *RoutineCoordinator) SendStopSignalChannel(data struct{}) {
 	if !r.IsStopped {
 		r.StopSignalChannel <- data
 	}
+}
+
+func (mVec *MotionVector) isZeroVector() bool {
+	return mVec.X == 0 && mVec.Y == 0 && mVec.Z == 0 && mVec.R == 0
 }

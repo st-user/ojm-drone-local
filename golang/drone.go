@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"sync"
@@ -15,13 +14,6 @@ import (
 type Drone struct {
 	driver       *tello.Driver
 	safetySignal SafetySignal
-}
-
-type MotionVector struct {
-	X float32
-	Y float32
-	Z float32
-	R float32
 }
 
 func NewDrone() Drone {
@@ -72,8 +64,7 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator) {
 					case "land":
 						drone.driver.Land()
 					case "vector":
-						mVec := MotionVector{}
-						json.Unmarshal(command.Command.([]byte), &mVec)
+						mVec := command.Command.(MotionVector)
 						drone.safetySignal.ConsumeSignal(mVec, drone)
 						drone.driver.SetVector(mVec.Y, mVec.X, mVec.Z, mVec.R)
 					}
@@ -82,11 +73,11 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator) {
 
 					switch _pkt := pkt.(type) {
 					case *rtcp.PictureLossIndication:
-						log.Printf("Receives RTCP PictureLossIndication. %v", _pkt)
+						Log.Debug("Receives RTCP PictureLossIndication. %v", _pkt)
 						drone.driver.StartVideo()
 
 					case *rtcp.ReceiverEstimatedMaximumBitrate:
-						log.Printf("Receives RTCP ReceiverEstimatedMaximumBitrate. %v", _pkt)
+						Log.Debug("Receives RTCP ReceiverEstimatedMaximumBitrate. %v", _pkt)
 						bitrate := float64(_pkt.Bitrate)
 
 						// Using the bitrate(MB) value corresponding to the one that 'rtcp.Receiver Estimated Maximum Bitrate.String()' shows.
@@ -111,7 +102,7 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator) {
 							drone.driver.SetVideoEncoderRate(tello.VideoBitRate1M)
 							changeTo = 1
 						}
-						log.Printf("ReceiverEstimation = %.2f Mb/s. The bit rate changes to %v Mb/s", bitrateMB, changeTo)
+						Log.Debug("ReceiverEstimation = %.2f Mb/s. The bit rate changes to %v Mb/s", bitrateMB, changeTo)
 					}
 
 				case <-routineCoordinator.StopSignalChannel:
@@ -169,10 +160,6 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator) {
 	}()
 
 	<-waitUntilConnected
-}
-
-func (mVec *MotionVector) isZeroVector() bool {
-	return mVec.X == 0 && mVec.Y == 0 && mVec.Z == 0 && mVec.R == 0
 }
 
 // In case of losing a stop signal (i.e '{ x: 0, y: 0 }' or '{ r: 0, z: 0 }') for some reason,
