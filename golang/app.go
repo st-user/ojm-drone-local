@@ -60,7 +60,7 @@ func generateKey(w http.ResponseWriter, r *http.Request) (*map[string]interface{
 func startApp(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, error) {
 
 	routineCoordinator.WaitUntilReleasingSocket()
-	log.Println("End waiting for the waitgroup to be done.")
+	Log.Info("End waiting for the waitgroup to be done.")
 
 	routineCoordinator.InitRoutineCoordinator(false)
 	decoder := json.NewDecoder(r.Body)
@@ -95,19 +95,19 @@ func startSignalingConnection(connection *websocket.Conn) {
 	for {
 		select {
 		case <-routineCoordinator.StopSignalChannel:
-			log.Println("Stop Signaling channel.")
+			Log.Info("Stop Signaling channel.")
 			return
 		default:
 
 			_, message, err := connection.ReadMessage()
 			if err != nil {
-				log.Println(err)
+				Log.Info("%v", err)
 				continue
 			}
 
 			rtcMessageData, err := NewRTCMessageData(&message)
 			if err != nil {
-				log.Println(err)
+				Log.Info("%v", err)
 				continue
 			}
 			messageType := rtcMessageData.MessageType
@@ -117,17 +117,17 @@ func startSignalingConnection(connection *websocket.Conn) {
 
 				config, err := rtcMessageData.ToConfiguration()
 				if err != nil {
-					log.Println(err)
+					Log.Info("%v", err)
 					continue
 				}
 				rtcHandler, err = NewRTCHandler(config)
 				if err != nil {
-					log.Println(err)
+					Log.Info("%v", err)
 					continue
 				}
 
 			case "canOffer":
-				log.Println("canOffer")
+				Log.Info("canOffer")
 
 				peerType := rtcMessageData.ToPeerType()
 				state := rtcHandler.DecidePeerState(peerType)
@@ -155,7 +155,7 @@ func startSignalingConnection(connection *websocket.Conn) {
 				}
 
 			case "offer":
-				log.Println("offer")
+				Log.Info("offer")
 
 				peerConnectionId := rtcMessageData.ToPeerConnectionId()
 
@@ -169,7 +169,7 @@ func startSignalingConnection(connection *websocket.Conn) {
 				}
 				sdp, err := rtcMessageData.ToSessionDescription()
 				if err != nil {
-					log.Println(err)
+					Log.Info("%v", err)
 					writeErrAnswer()
 					continue
 				}
@@ -185,7 +185,7 @@ func startSignalingConnection(connection *websocket.Conn) {
 				}
 
 				if err != nil {
-					log.Println(err)
+					Log.Info("%v", err)
 					writeErrAnswer()
 					continue
 				}
@@ -248,7 +248,7 @@ func land(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, erro
 func routes() {
 
 	port := ENV["PORT"]
-	log.Println("PORT:" + port)
+	Log.Info("PORT:" + port)
 
 	routineCoordinator.InitRoutineCoordinator(true)
 	routineCoordinator.IsStopped = true

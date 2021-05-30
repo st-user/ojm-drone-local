@@ -56,7 +56,7 @@ func HandleFuncJSON(
 
 	http.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 
-		log.Printf("Request to %v", path)
+		Log.Info("Request to %v", path)
 
 		result, err := handler(w, r)
 
@@ -72,7 +72,7 @@ func HandleFuncJSON(
 
 func writeInternalServerError(w http.ResponseWriter, err *error) {
 	w.WriteHeader(500)
-	log.Println(err)
+	Log.Info("%v", err)
 }
 
 type OutboundRelayMessageServer struct {
@@ -104,7 +104,7 @@ func (ws *OutboundRelayMessageServer) HandleMessage(
 		writeInternalServerError(w, &err)
 		return
 	}
-	log.Println("Connected.")
+	Log.Info("Connected.")
 
 	go func() {
 		defer conn.Close()
@@ -115,11 +115,11 @@ func (ws *OutboundRelayMessageServer) HandleMessage(
 			case text := <-routineCoordinator.DroneStateChannel:
 				stateJson := messageHandler(text)
 				if err := conn.WriteJSON(stateJson); err != nil {
-					log.Println(err)
+					Log.Info("%v", err)
 					continue
 				}
 			case <-routineCoordinator.StopSignalChannel:
-				log.Println("Stop OutboundRelayMessageServer")
+				Log.Info("Stop OutboundRelayMessageServer")
 				return
 			}
 

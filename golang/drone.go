@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
@@ -46,7 +45,7 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator) {
 		driver.On(tello.FlightDataEvent, func(data interface{}) {
 			if 3 < time.Since(lastLoggedTime).Seconds() {
 				fd := data.(*tello.FlightData)
-				log.Printf("Battery level %v%%", fd.BatteryPercentage)
+				Log.Info("Battery level %v%%", fd.BatteryPercentage)
 				lastLoggedTime = time.Now()
 			}
 		})
@@ -106,7 +105,7 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator) {
 					}
 
 				case <-routineCoordinator.StopSignalChannel:
-					log.Println("Stop drone event loop.")
+					Log.Info("Stop drone event loop.")
 					robot.Stop()
 					return
 				}
@@ -131,7 +130,7 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator) {
 			defer func() {
 				if r := recover(); r != nil {
 					if loggedRecoverCount%100 == 0 {
-						log.Printf("Ignores panic. %v", r)
+						Log.Info("Ignores panic. %v", r)
 						loggedRecoverCount = 0
 					}
 					loggedRecoverCount++
@@ -209,7 +208,7 @@ func (s *SafetySignal) startChecking(drone *Drone) {
 					s.mutex.Lock()
 					defer s.mutex.Unlock()
 
-					log.Println("Set a zero translation vector because of losing a stop signal.")
+					Log.Info("Set a zero translation vector because of losing a stop signal.")
 					drone.driver.SetVector(0, 0, 0, 0)
 					s.endChecking()
 					return
