@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/websocket"
+	"github.com/pion/webrtc/v3"
 )
 
 var ENV = loadEnv()
@@ -128,42 +129,71 @@ func startSignalingConnection(connection *websocket.Conn) {
 			case "canOffer":
 				log.Println("canOffer")
 
-				canOffer := rtcHandler.CanOffer()
-				currentPeerConnectionId := rtcMessageData.ToPeerConnectionId()
-
-				if !canOffer && rtcHandler.ShouldRestart(currentPeerConnectionId) {
-					canOffer = true
-					routineCoordinator.StopApp()
-				} else {
-					rtcHandler.SetPeerConnectionId(rtcMessageData.ToPeerConnectionId())
-				}
+				peerType := rtcMessageData.ToPeerType()
+				state := rtcHandler.DecidePeerState(peerType)
 
 				connection.WriteJSON(map[string]interface{}{
-					"messageType": "canOffer",
-					"canOffer":    canOffer,
+					"messageType":      "canOffer",
+					"peerConnectionId": peerType.PeerConnectionId,
+					"state":            state,
 				})
+
+			case "close":
+
+				Log.Info("One of the peers has been closed.")
+				peerType := rtcMessageData.ToPeerType()
+				if rtcHandler.IsPrimary(peerType.PeerConnectionId) {
+					Log.Info("Primary peer has been closed. Restart the application.")
+					routineCoordinator.StopApp()
+					return
+
+				} else {
+					if !peerType.IsPrimary {
+						Log.Info("Audience peer has been closed. %v", peerType.PeerConnectionId)
+						rtcHandler.SendAudienceRTCStopChannel(peerType.PeerConnectionId)
+					}
+				}
 
 			case "offer":
 				log.Println("offer")
 
+				peerConnectionId := rtcMessageData.ToPeerConnectionId()
+
+				writeErrAnswer := func() {
+					rtcHandler.DeleteAudience(peerConnectionId)
+					connection.WriteJSON(map[string]interface{}{
+						"messageType":      "answer",
+						"peerConnectionId": peerConnectionId,
+						"err":              true,
+					})
+				}
 				sdp, err := rtcMessageData.ToSessionDescription()
 				if err != nil {
 					log.Println(err)
+					writeErrAnswer()
 					continue
 				}
 
-				drone := NewDrone()
-				drone.Start(&routineCoordinator)
-				_, err = rtcHandler.StartConnection(sdp, &routineCoordinator)
+				var localDescription *webrtc.SessionDescription
+
+				if rtcHandler.IsPrimary(peerConnectionId) {
+					drone := NewDrone()
+					drone.Start(&routineCoordinator)
+					localDescription, err = rtcHandler.StartPrimaryConnection(sdp, &routineCoordinator)
+				} else {
+					localDescription, err = rtcHandler.StartAudienceConnection(peerConnectionId, sdp, &routineCoordinator)
+				}
 
 				if err != nil {
 					log.Println(err)
+					writeErrAnswer()
 					continue
 				}
-				localDescription := rtcHandler.rtcPeerConnection.LocalDescription()
 
 				connection.WriteJSON(map[string]interface{}{
-					"messageType": "answer",
+					"messageType":      "answer",
+					"peerConnectionId": peerConnectionId,
+					"err":              false,
 					"answer": map[string]string{
 						"sdp":  localDescription.SDP,
 						"type": localDescription.Type.String(),

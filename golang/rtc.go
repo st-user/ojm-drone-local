@@ -2,12 +2,19 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"time"
 
 	"github.com/pion/rtcp"
 	"github.com/pion/webrtc/v3"
 	"github.com/pion/webrtc/v3/pkg/media"
+)
+
+const (
+	PEER_STATE_SAME  = "SAME"
+	PEER_STATE_EXIST = "EXIST"
+	PEER_STATE_EMPTY = "EMPTY"
 )
 
 type RTCMessageData struct {
@@ -24,6 +31,11 @@ type ICEServerInfo struct {
 type ICEServerInfoCredential struct {
 	Username string
 	Password string
+}
+
+type PeerType struct {
+	PeerConnectionId float64
+	IsPrimary        bool
 }
 
 func NewRTCMessageData(message *[]byte) (RTCMessageData, error) {
@@ -72,6 +84,13 @@ func (d *RTCMessageData) ToConfiguration() (*webrtc.Configuration, error) {
 	return &config, nil
 }
 
+func (d *RTCMessageData) ToPeerType() PeerType {
+	return PeerType{
+		PeerConnectionId: d.data["peerConnectionId"].(float64),
+		IsPrimary:        d.data["isPrimary"].(bool),
+	}
+}
+
 func (d *RTCMessageData) ToPeerConnectionId() float64 {
 	return d.data["peerConnectionId"].(float64)
 }
@@ -92,8 +111,16 @@ func (d *RTCMessageData) ToSessionDescription() (*webrtc.SessionDescription, err
 }
 
 type RTCHandler struct {
-	rtcPeerConnection *webrtc.PeerConnection
-	peerConnectionId  float64
+	rtcPeerConnection       *webrtc.PeerConnection
+	config                  *webrtc.Configuration
+	peerConnectionId        float64
+	audiencePeerConnections map[float64]AudiencePeerInfo
+	videoTrack              *webrtc.TrackLocalStaticSample
+}
+
+type AudiencePeerInfo struct {
+	rtcPeerConnection      *webrtc.PeerConnection
+	audienceRTCStopChannel chan struct{}
 }
 
 func NewRTCHandler(config *webrtc.Configuration) (RTCHandler, error) {
@@ -103,24 +130,41 @@ func NewRTCHandler(config *webrtc.Configuration) (RTCHandler, error) {
 	}
 
 	return RTCHandler{
-		rtcPeerConnection: rtcPeerConnection,
-		peerConnectionId:  0,
+		rtcPeerConnection:       rtcPeerConnection,
+		config:                  config,
+		peerConnectionId:        0,
+		audiencePeerConnections: make(map[float64]AudiencePeerInfo),
 	}, nil
 }
 
-func (handler *RTCHandler) CanOffer() bool {
-	return handler.peerConnectionId == 0
+func (handler *RTCHandler) DecidePeerState(peerType PeerType) string {
+	if peerType.IsPrimary {
+		switch handler.peerConnectionId {
+		case 0:
+			handler.peerConnectionId = peerType.PeerConnectionId
+			return PEER_STATE_EMPTY
+		case peerType.PeerConnectionId:
+			return PEER_STATE_SAME
+		default:
+			return PEER_STATE_EXIST
+		}
+
+	} else {
+		_, contains := handler.audiencePeerConnections[peerType.PeerConnectionId]
+		if contains {
+			return PEER_STATE_SAME
+		} else {
+			handler.audiencePeerConnections[peerType.PeerConnectionId] = AudiencePeerInfo{}
+			return PEER_STATE_EMPTY
+		}
+	}
 }
 
-func (handler *RTCHandler) ShouldRestart(peerConnectionId float64) bool {
-	return handler.peerConnectionId != peerConnectionId
+func (handler *RTCHandler) IsPrimary(peerConnectionId float64) bool {
+	return handler.peerConnectionId == peerConnectionId
 }
 
-func (handler *RTCHandler) SetPeerConnectionId(peerConnectionId float64) {
-	handler.peerConnectionId = peerConnectionId
-}
-
-func (handler *RTCHandler) StartConnection(
+func (handler *RTCHandler) StartPrimaryConnection(
 	remoteSdp *webrtc.SessionDescription,
 	routineCoordinator *RoutineCoordinator) (*webrtc.SessionDescription, error) {
 
@@ -130,6 +174,7 @@ func (handler *RTCHandler) StartConnection(
 		log.Println(err)
 		return &webrtc.SessionDescription{}, err
 	}
+	handler.videoTrack = videoTrack
 
 	rtpSender, err := handler.rtcPeerConnection.AddTrack(videoTrack)
 	if err != nil {
@@ -139,23 +184,23 @@ func (handler *RTCHandler) StartConnection(
 
 	go func() {
 		rtcpBuf := make([]byte, 1500)
+		for {
+			select {
+			case <-routineCoordinator.StopSignalChannel:
+				log.Println("Stops WebRTC event loop.")
+				return
+			default:
 
-		select {
-		case <-routineCoordinator.StopSignalChannel:
-			log.Println("Stops WebRTC event loop.")
-			return
-		default:
-			for {
 				n, _, rtcpErr := rtpSender.Read(rtcpBuf)
 				if rtcpErr != nil {
-					return
+					continue
 				}
 				rtcpPacket := rtcpBuf[:n]
 
 				pkts, err := rtcp.Unmarshal(rtcpPacket)
 				if err != nil {
 					log.Println(err)
-					return
+					continue
 				}
 
 				for _, pkt := range pkts {
@@ -263,5 +308,126 @@ func (handler *RTCHandler) StartConnection(
 		}
 	}()
 
-	return &answer, nil
+	return handler.rtcPeerConnection.LocalDescription(), nil
+}
+
+func (handler *RTCHandler) StartAudienceConnection(
+	peerConnectionId float64,
+	remoteSdp *webrtc.SessionDescription,
+	routineCoordinator *RoutineCoordinator) (*webrtc.SessionDescription, error) {
+
+	if handler.videoTrack == nil {
+		return nil, errors.New("videoTrack is nil")
+	}
+
+	peerConnection, err := webrtc.NewPeerConnection(*handler.config)
+	if err != nil {
+		log.Println(err)
+		return &webrtc.SessionDescription{}, err
+	}
+
+	stopChan := make(chan struct{})
+	peerInfo := AudiencePeerInfo{
+		rtcPeerConnection:      peerConnection,
+		audienceRTCStopChannel: stopChan,
+	}
+	handler.audiencePeerConnections[peerConnectionId] = peerInfo
+
+	rtpSender, err := peerConnection.AddTrack(handler.videoTrack)
+	if err != nil {
+		log.Println(err)
+		return &webrtc.SessionDescription{}, err
+	}
+
+	go func() {
+
+		<-peerInfo.audienceRTCStopChannel
+		rtpSender.Stop()
+	}()
+
+	go func() {
+		rtcpBuf := make([]byte, 1500)
+
+		defer func() {
+			peerConnection.Close()
+			delete(handler.audiencePeerConnections, peerConnectionId)
+		}()
+
+		for {
+
+			select {
+			case <-peerInfo.audienceRTCStopChannel:
+				log.Printf("Stops an audience WebRTC event loop. %v", peerConnectionId)
+				return
+			case <-routineCoordinator.StopSignalChannel:
+				log.Println("Stop audiences WebRTC event loop.")
+				return
+			default:
+
+				n, _, rtcpErr := rtpSender.Read(rtcpBuf)
+				if rtcpErr != nil {
+					continue
+				}
+				rtcpPacket := rtcpBuf[:n]
+
+				pkts, err := rtcp.Unmarshal(rtcpPacket)
+				if err != nil {
+					log.Println(err)
+					continue
+				}
+
+				for _, pkt := range pkts {
+					_, ok := pkt.(*rtcp.PictureLossIndication)
+					if ok {
+						routineCoordinator.SendRTCPPacketChannel(pkt)
+					}
+				}
+			}
+		}
+	}()
+
+	err = peerConnection.SetRemoteDescription(*remoteSdp)
+	if err != nil {
+		log.Println(err)
+		return &webrtc.SessionDescription{}, err
+	}
+
+	answer, err := peerConnection.CreateAnswer(nil)
+	if err != nil {
+		log.Println(err)
+		return &webrtc.SessionDescription{}, err
+	}
+
+	gatherComplete := webrtc.GatheringCompletePromise(peerConnection)
+
+	err = peerConnection.SetLocalDescription(answer)
+	if err != nil {
+		log.Println(err)
+		return &webrtc.SessionDescription{}, err
+	}
+
+	<-gatherComplete
+
+	return peerConnection.LocalDescription(), nil
+}
+
+func (handler *RTCHandler) SendAudienceRTCStopChannel(peerConnectionId float64) {
+	con, ok := handler.audiencePeerConnections[peerConnectionId]
+	if ok && con.audienceRTCStopChannel != nil {
+		close(con.audienceRTCStopChannel)
+	}
+}
+
+func (handler *RTCHandler) DeleteAudience(peerConnectionId float64) {
+	audienceInfo, ok := handler.audiencePeerConnections[peerConnectionId]
+	if ok {
+		delete(handler.audiencePeerConnections, peerConnectionId)
+		if audienceInfo.audienceRTCStopChannel != nil {
+			close(audienceInfo.audienceRTCStopChannel)
+		}
+		if audienceInfo.rtcPeerConnection != nil {
+			audienceInfo.rtcPeerConnection.Close()
+		}
+	}
+
 }
