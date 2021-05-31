@@ -62,6 +62,7 @@ func HandleFuncJSON(
 
 		w.Header().Set("Content-Type", "application/json")
 		if err != nil {
+			Log.Warn("%v", err)
 			writeInternalServerError(w, &err)
 			return
 		}

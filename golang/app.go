@@ -16,6 +16,14 @@ var ENV = loadEnv()
 var routineCoordinator = RoutineCoordinator{}
 var Log = NewLogger(ENV["LOG_LEVEL"])
 
+func toEndpointUrlWithTrailingSlash() string {
+	endpoint := ENV["SIGNALING_ENDPOINT"]
+	if "/" != string(endpoint[len(endpoint)-1]) {
+		endpoint = endpoint + "/"
+	}
+	return endpoint
+}
+
 func index(statics *Statics) func(w http.ResponseWriter, r *http.Request) {
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -29,7 +37,7 @@ func index(statics *Statics) func(w http.ResponseWriter, r *http.Request) {
 func generateKey(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, error) {
 
 	client := &http.Client{}
-	url := ENV["SIGNALING_ENDPOINT"] + "/generateKey"
+	url := toEndpointUrlWithTrailingSlash() + "generateKey"
 	secret := ENV["SECRET"]
 
 	req, _ := http.NewRequest("GET", url, nil)
@@ -71,7 +79,7 @@ func startApp(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, 
 		return nil, err
 	}
 
-	url := ENV["SIGNALING_ENDPOINT"] + "/signaling?startKey=" + bodyJson["startKey"]
+	url := toEndpointUrlWithTrailingSlash() + "signaling?startKey=" + bodyJson["startKey"]
 	url = strings.ReplaceAll(url, "http://", "ws://")
 	url = strings.ReplaceAll(url, "https://", "wss://")
 
