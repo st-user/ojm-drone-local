@@ -121,6 +121,10 @@ func startSignalingConnection(connection *websocket.Conn) {
 			messageType := rtcMessageData.MessageType
 
 			switch messageType {
+			case "ping":
+				connection.WriteJSON(map[string]string{
+					"messageType": "pong",
+				})
 			case "iceServerInfo":
 
 				config, err := rtcMessageData.ToConfiguration()
