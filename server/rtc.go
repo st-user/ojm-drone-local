@@ -33,7 +33,7 @@ type ICEServerInfoCredential struct {
 }
 
 type PeerType struct {
-	PeerConnectionId float64
+	PeerConnectionId string
 	IsPrimary        bool
 }
 
@@ -85,13 +85,13 @@ func (d *RTCMessageData) ToConfiguration() (*webrtc.Configuration, error) {
 
 func (d *RTCMessageData) ToPeerType() PeerType {
 	return PeerType{
-		PeerConnectionId: d.data["peerConnectionId"].(float64),
+		PeerConnectionId: d.data["peerConnectionId"].(string),
 		IsPrimary:        d.data["isPrimary"].(bool),
 	}
 }
 
-func (d *RTCMessageData) ToPeerConnectionId() float64 {
-	return d.data["peerConnectionId"].(float64)
+func (d *RTCMessageData) ToPeerConnectionId() string {
+	return d.data["peerConnectionId"].(string)
 }
 
 func (d *RTCMessageData) ToSessionDescription() (*webrtc.SessionDescription, error) {
@@ -112,8 +112,8 @@ func (d *RTCMessageData) ToSessionDescription() (*webrtc.SessionDescription, err
 type RTCHandler struct {
 	rtcPeerConnection       *webrtc.PeerConnection
 	config                  *webrtc.Configuration
-	peerConnectionId        float64
-	audiencePeerConnections map[float64]AudiencePeerInfo
+	peerConnectionId        string
+	audiencePeerConnections map[string]AudiencePeerInfo
 	videoTrack              *webrtc.TrackLocalStaticSample
 }
 
@@ -131,15 +131,15 @@ func NewRTCHandler(config *webrtc.Configuration) (RTCHandler, error) {
 	return RTCHandler{
 		rtcPeerConnection:       rtcPeerConnection,
 		config:                  config,
-		peerConnectionId:        0,
-		audiencePeerConnections: make(map[float64]AudiencePeerInfo),
+		peerConnectionId:        "",
+		audiencePeerConnections: make(map[string]AudiencePeerInfo),
 	}, nil
 }
 
 func (handler *RTCHandler) DecidePeerState(peerType PeerType) string {
 	if peerType.IsPrimary {
 		switch handler.peerConnectionId {
-		case 0:
+		case "":
 			handler.peerConnectionId = peerType.PeerConnectionId
 			return PEER_STATE_EMPTY
 		case peerType.PeerConnectionId:
@@ -159,7 +159,7 @@ func (handler *RTCHandler) DecidePeerState(peerType PeerType) string {
 	}
 }
 
-func (handler *RTCHandler) IsPrimary(peerConnectionId float64) bool {
+func (handler *RTCHandler) IsPrimary(peerConnectionId string) bool {
 	return handler.peerConnectionId == peerConnectionId
 }
 
@@ -310,7 +310,7 @@ func (handler *RTCHandler) StartPrimaryConnection(
 }
 
 func (handler *RTCHandler) StartAudienceConnection(
-	peerConnectionId float64,
+	peerConnectionId string,
 	remoteSdp *webrtc.SessionDescription,
 	routineCoordinator *RoutineCoordinator) (*webrtc.SessionDescription, error) {
 
@@ -409,14 +409,14 @@ func (handler *RTCHandler) StartAudienceConnection(
 	return peerConnection.LocalDescription(), nil
 }
 
-func (handler *RTCHandler) SendAudienceRTCStopChannel(peerConnectionId float64) {
+func (handler *RTCHandler) SendAudienceRTCStopChannel(peerConnectionId string) {
 	con, ok := handler.audiencePeerConnections[peerConnectionId]
 	if ok && con.audienceRTCStopChannel != nil {
 		close(con.audienceRTCStopChannel)
 	}
 }
 
-func (handler *RTCHandler) DeleteAudience(peerConnectionId float64) {
+func (handler *RTCHandler) DeleteAudience(peerConnectionId string) {
 	audienceInfo, ok := handler.audiencePeerConnections[peerConnectionId]
 	if ok {
 		delete(handler.audiencePeerConnections, peerConnectionId)
