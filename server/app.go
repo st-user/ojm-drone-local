@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -79,7 +80,25 @@ func startApp(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, 
 		return nil, err
 	}
 
-	url := toEndpointUrlWithTrailingSlash() + "signaling?startKey=" + bodyJson["startKey"]
+	baseUrl := toEndpointUrlWithTrailingSlash()
+	ticketUrl := baseUrl + "ticket"
+	startKeyJson := map[string]string{
+		"startKey": bodyJson["startKey"],
+	}
+	startKeyJsonBytes, err := json.Marshal(startKeyJson)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := http.Post(ticketUrl, "application/json", bytes.NewBuffer(startKeyJsonBytes))
+	if err != nil || res.StatusCode != 200 {
+		return nil, fmt.Errorf("encounters an error during handling response. %v", err)
+	}
+
+	var ticketJson map[string]string
+	json.NewDecoder(res.Body).Decode(&ticketJson)
+
+	url := baseUrl + "signaling?ticket=" + ticketJson["ticket"]
 	url = strings.ReplaceAll(url, "http://", "ws://")
 	url = strings.ReplaceAll(url, "https://", "wss://")
 
