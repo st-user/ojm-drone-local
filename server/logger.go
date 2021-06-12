@@ -37,7 +37,7 @@ func NewLogger(levelStr string) Logger {
 		level: levelInt,
 		debug: log.New(os.Stdout, "[DEBUG]: ", log.Ldate|log.Ltime),
 		info:  log.New(os.Stdout, "[INFO]: ", log.Ldate|log.Ltime),
-		warn:  log.New(os.Stdout, "[DEBUG]: ", log.Ldate|log.Ltime),
+		warn:  log.New(os.Stdout, "[WARN]: ", log.Ldate|log.Ltime),
 	}
 }
 

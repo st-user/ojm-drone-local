@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/pion/webrtc/v3"
@@ -80,8 +81,6 @@ func startApp(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, 
 		return nil, err
 	}
 
-	baseUrl := toEndpointUrlWithTrailingSlash()
-	ticketUrl := baseUrl + "ticket"
 	startKeyJson := map[string]string{
 		"startKey": bodyJson["startKey"],
 	}
@@ -90,9 +89,23 @@ func startApp(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, 
 		return nil, err
 	}
 
+	err = negotiateSignalingConnection(startKeyJsonBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	responseBody := map[string]interface{}{}
+	return &responseBody, nil
+}
+
+func negotiateSignalingConnection(startKeyJsonBytes []byte) error {
+
+	baseUrl := toEndpointUrlWithTrailingSlash()
+	ticketUrl := baseUrl + "ticket"
+
 	res, err := http.Post(ticketUrl, "application/json", bytes.NewBuffer(startKeyJsonBytes))
 	if err != nil || res.StatusCode != 200 {
-		return nil, fmt.Errorf("encounters an error during handling response. %v", err)
+		return fmt.Errorf("encounters an error during handling response. %v", err)
 	}
 
 	var ticketJson map[string]string
@@ -105,21 +118,34 @@ func startApp(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, 
 	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
 
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	go startSignalingConnection(conn)
+	go startSignalingConnection(conn, func() {
+		b := make([]byte, len(startKeyJsonBytes))
+		copy(b, startKeyJsonBytes)
+		restartSignalingConnection(b)
+	})
 
-	responseBody := map[string]interface{}{}
-	return &responseBody, nil
+	return nil
 }
 
-func startSignalingConnection(connection *websocket.Conn) {
+func restartSignalingConnection(startKeyJsonBytes []byte) {
+	err := negotiateSignalingConnection(startKeyJsonBytes)
+	if err != nil {
+		time.Sleep(1 * time.Second)
+		restartSignalingConnection(startKeyJsonBytes)
+	}
+}
+
+func startSignalingConnection(connection *websocket.Conn, recoverFunc func()) {
 	defer connection.Close()
 
 	var rtcHandler RTCHandler
 
+	var consecutiveErrorOnReadCount int
 	for {
+
 		select {
 		case <-routineCoordinator.StopSignalChannel:
 			Log.Info("Stop Signaling channel.")
@@ -128,7 +154,12 @@ func startSignalingConnection(connection *websocket.Conn) {
 
 			_, message, err := connection.ReadMessage()
 			if err != nil {
+				consecutiveErrorOnReadCount++
 				Log.Info("%v", err)
+				if 10 < consecutiveErrorOnReadCount {
+					routineCoordinator.StopApp()
+					return
+				}
 				continue
 			}
 
