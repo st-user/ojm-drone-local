@@ -194,11 +194,26 @@ func startSignalingConnection(connection *websocket.Conn, recoverFunc func()) {
 				peerType := rtcMessageData.ToPeerType()
 				state := rtcHandler.DecidePeerState(peerType)
 
-				connection.WriteJSON(map[string]interface{}{
-					"messageType":      "canOffer",
-					"peerConnectionId": peerType.PeerConnectionId,
-					"state":            state,
-				})
+				write := func() {
+					connection.WriteJSON(map[string]interface{}{
+						"messageType":      "canOffer",
+						"peerConnectionId": peerType.PeerConnectionId,
+						"state":            state,
+					})
+				}
+
+				if state == PEER_STATE_SAME {
+					if peerType.IsPrimary {
+						Log.Info("Primary peer is requesting new connection. Restart the application.")
+						routineCoordinator.StopApp()
+						write()
+						return
+					} else {
+						Log.Info("Audience peer(%v) is requesting new connectiond.", peerType.PeerConnectionId)
+						rtcHandler.SendAudienceRTCStopChannel(peerType.PeerConnectionId)
+					}
+				}
+				write()
 
 			case "close":
 

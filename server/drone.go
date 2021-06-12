@@ -12,7 +12,6 @@ import (
 
 type Drone struct {
 	driver       *tello.Driver
-	started      bool
 	safetySignal SafetySignal
 }
 
@@ -23,10 +22,6 @@ func NewDrone() Drone {
 }
 
 func (drone *Drone) Start(routineCoordinator *RoutineCoordinator) {
-
-	if drone.started {
-		return
-	}
 
 	var driver *tello.Driver
 	var robot *gobot.Robot
@@ -110,10 +105,6 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator) {
 		defer routineCoordinator.DoneWaitGroupUntilReleasingSocket()
 
 		for {
-			if drone.driver == nil {
-				time.Sleep(100 * time.Millisecond)
-				continue
-			}
 
 			select {
 			case command := <-routineCoordinator.DroneCommandChannel:
@@ -167,7 +158,6 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator) {
 			case <-routineCoordinator.StopSignalChannel:
 				Log.Info("Stop drone event loop.")
 				robot.Stop()
-				drone.started = false
 				return
 			}
 
@@ -175,10 +165,14 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator) {
 	}()
 
 	checkerFunc := func() {
+		routineCoordinator.AddWaitGroupUntilReleasingSocket()
+		defer routineCoordinator.DoneWaitGroupUntilReleasingSocket()
+
 		for {
 			select {
 			case <-routineCoordinator.StopSignalChannel:
 				Log.Info("Stop drone helth check loop.")
+				robot.Stop()
 				return
 			default:
 
@@ -196,12 +190,10 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator) {
 				if ok {
 					Log.Info("Drone is successfully receiving data.")
 				} else {
-					if robot != nil {
-						robot.Stop()
-						Log.Info("Restarts robot.")
-						go startRobot()
-						time.Sleep(1 * time.Second)
-					}
+					robot.Stop()
+					Log.Info("Restarts robot.")
+					startRobot()
+					time.Sleep(1 * time.Second)
 				}
 
 				time.Sleep(1 * time.Second)
@@ -210,10 +202,9 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator) {
 	}
 
 	go doChecker(checkerFunc)
-	go startRobot()
+	startRobot()
 
 	Log.Info("Drone starts.")
-	drone.started = true
 }
 
 func doChecker(checkerFunc func()) {
