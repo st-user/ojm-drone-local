@@ -188,7 +188,7 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator) {
 				}
 
 				if ok {
-					Log.Info("Drone is successfully receiving data.")
+					Log.Debug("Drone is successfully receiving data.")
 				} else {
 					robot.Stop()
 					Log.Info("Restarts robot.")

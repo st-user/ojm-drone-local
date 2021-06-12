@@ -339,19 +339,24 @@ func (handler *RTCHandler) StartAudienceConnection(
 		return &webrtc.SessionDescription{}, err
 	}
 
+	terminate := func() {
+		peerConnection.Close()
+		delete(handler.audiencePeerConnections, peerConnectionId)
+	}
+
 	go func() {
 
-		<-peerInfo.audienceRTCStopChannel
-		rtpSender.Stop()
+		select {
+		case <-peerInfo.audienceRTCStopChannel:
+			terminate()
+		case <-routineCoordinator.StopSignalChannel:
+			terminate()
+		}
+
 	}()
 
 	go func() {
 		rtcpBuf := make([]byte, 1500)
-
-		defer func() {
-			peerConnection.Close()
-			delete(handler.audiencePeerConnections, peerConnectionId)
-		}()
 
 		for {
 
