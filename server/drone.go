@@ -12,6 +12,7 @@ import (
 
 type Drone struct {
 	driver       *tello.Driver
+	started      bool
 	safetySignal SafetySignal
 }
 
@@ -23,10 +24,17 @@ func NewDrone() Drone {
 
 func (drone *Drone) Start(routineCoordinator *RoutineCoordinator) {
 
-	waitUntilConnected := make(chan struct{})
+	if drone.started {
+		return
+	}
+
 	var driver *tello.Driver
 	var robot *gobot.Robot
-	go func() {
+
+	lastTimestampVideoReceived := time.Now()
+	lastTimestampFightDataReceived := time.Now()
+
+	startRobot := func() {
 
 		driver = tello.NewDriver("8888")
 		drone.driver = driver
@@ -34,84 +42,22 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator) {
 		driver.On(tello.ConnectedEvent, func(data interface{}) {
 			fmt.Println("Starts receiving video frames from your drone.")
 			driver.StartVideo()
-			driver.SetVideoEncoderRate(tello.VideoBitRate4M)
+			driver.SetVideoEncoderRate(tello.VideoBitRate1M)
 			gobot.Every(10*time.Second, func() {
 				driver.StartVideo()
 			})
-			close(waitUntilConnected)
 		})
 
 		lastLoggedTime := time.Now()
 		driver.On(tello.FlightDataEvent, func(data interface{}) {
+			lastTimestampFightDataReceived = time.Now()
+
 			if 3 < time.Since(lastLoggedTime).Seconds() {
 				fd := data.(*tello.FlightData)
 				Log.Info("Battery level %v%%", fd.BatteryPercentage)
 				lastLoggedTime = time.Now()
 			}
 		})
-
-		go func() {
-			routineCoordinator.AddWaitGroupUntilReleasingSocket()
-			defer routineCoordinator.DoneWaitGroupUntilReleasingSocket()
-
-			for {
-				select {
-				case command := <-routineCoordinator.DroneCommandChannel:
-					switch command.CommandType {
-					case "takeoff":
-						drone.driver.TakeOff()
-					case "land":
-						drone.driver.Land()
-					case "vector":
-						mVec := command.Command.(MotionVector)
-						drone.safetySignal.ConsumeSignal(mVec, drone)
-						drone.driver.SetVector(mVec.Y, mVec.X, mVec.Z, mVec.R)
-					}
-
-				case pkt := <-routineCoordinator.RTCPPacketChannel:
-
-					switch _pkt := pkt.(type) {
-					case *rtcp.PictureLossIndication:
-						Log.Debug("Receives RTCP PictureLossIndication. %v", _pkt)
-						drone.driver.StartVideo()
-
-					case *rtcp.ReceiverEstimatedMaximumBitrate:
-						Log.Debug("Receives RTCP ReceiverEstimatedMaximumBitrate. %v", _pkt)
-						bitrate := float64(_pkt.Bitrate)
-
-						// Using the bitrate(MB) value corresponding to the one that 'rtcp.Receiver Estimated Maximum Bitrate.String()' shows.
-						// Reference: github.com/pion/rtcp receiver_estimated_maximum_bitrate.go
-						bitrateMB := bitrate / 1000.0 / 1000.0 // :MB
-						var changeTo float64
-
-						switch {
-						case bitrateMB >= 4.0:
-							drone.driver.SetVideoEncoderRate(tello.VideoBitRate4M)
-							changeTo = 4.0
-						case bitrateMB >= 3.0:
-							drone.driver.SetVideoEncoderRate(tello.VideoBitRate3M)
-							changeTo = 3.0
-						case bitrateMB >= 2.0:
-							drone.driver.SetVideoEncoderRate(tello.VideoBitRate2M)
-							changeTo = 2.0
-						case bitrateMB >= 1.5:
-							drone.driver.SetVideoEncoderRate(tello.VideoBitRate15M)
-							changeTo = 1.5
-						default:
-							drone.driver.SetVideoEncoderRate(tello.VideoBitRate1M)
-							changeTo = 1
-						}
-						Log.Debug("ReceiverEstimation = %.2f Mb/s. The bit rate changes to %v Mb/s", bitrateMB, changeTo)
-					}
-
-				case <-routineCoordinator.StopSignalChannel:
-					Log.Info("Stop drone event loop.")
-					robot.Stop()
-					return
-				}
-
-			}
-		}()
 
 		// Thanks to [oliverpool/tello-webrtc-fpv](https://github.com/oliverpool/tello-webrtc-fpv)
 		// I was able to figure out the timing at which h264 packets should be send to a browser.
@@ -126,6 +72,7 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator) {
 
 		loggedRecoverCount := 0
 		handleData := func(_data interface{}) {
+			lastTimestampVideoReceived = time.Now()
 
 			defer func() {
 				if r := recover(); r != nil {
@@ -156,9 +103,128 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator) {
 		)
 		robot.AutoRun = false
 		robot.Start()
+	}
+
+	go func() {
+		routineCoordinator.AddWaitGroupUntilReleasingSocket()
+		defer routineCoordinator.DoneWaitGroupUntilReleasingSocket()
+
+		for {
+			if drone.driver == nil {
+				time.Sleep(100 * time.Millisecond)
+				continue
+			}
+
+			select {
+			case command := <-routineCoordinator.DroneCommandChannel:
+				switch command.CommandType {
+				case "takeoff":
+					drone.driver.TakeOff()
+				case "land":
+					drone.driver.Land()
+				case "vector":
+					mVec := command.Command.(MotionVector)
+					drone.safetySignal.ConsumeSignal(mVec, drone)
+					drone.driver.SetVector(mVec.Y, mVec.X, mVec.Z, mVec.R)
+				}
+
+			case pkt := <-routineCoordinator.RTCPPacketChannel:
+
+				switch _pkt := pkt.(type) {
+				case *rtcp.PictureLossIndication:
+					Log.Debug("Receives RTCP PictureLossIndication. %v", _pkt)
+					drone.driver.StartVideo()
+
+				case *rtcp.ReceiverEstimatedMaximumBitrate:
+					Log.Debug("Receives RTCP ReceiverEstimatedMaximumBitrate. %v", _pkt)
+					bitrate := float64(_pkt.Bitrate)
+
+					// Using the bitrate(MB) value corresponding to the one that 'rtcp.Receiver Estimated Maximum Bitrate.String()' shows.
+					// Reference: github.com/pion/rtcp receiver_estimated_maximum_bitrate.go
+					bitrateMB := bitrate / 1000.0 / 1000.0 // :MB
+					var changeTo float64
+
+					switch {
+					case bitrateMB >= 4.0:
+						drone.driver.SetVideoEncoderRate(tello.VideoBitRate4M)
+						changeTo = 4.0
+					case bitrateMB >= 3.0:
+						drone.driver.SetVideoEncoderRate(tello.VideoBitRate3M)
+						changeTo = 3.0
+					case bitrateMB >= 2.0:
+						drone.driver.SetVideoEncoderRate(tello.VideoBitRate2M)
+						changeTo = 2.0
+					case bitrateMB >= 1.5:
+						drone.driver.SetVideoEncoderRate(tello.VideoBitRate15M)
+						changeTo = 1.5
+					default:
+						drone.driver.SetVideoEncoderRate(tello.VideoBitRate1M)
+						changeTo = 1
+					}
+					Log.Debug("ReceiverEstimation = %.2f Mb/s. The bit rate changes to %v Mb/s", bitrateMB, changeTo)
+				}
+
+			case <-routineCoordinator.StopSignalChannel:
+				Log.Info("Stop drone event loop.")
+				robot.Stop()
+				drone.started = false
+				return
+			}
+
+		}
 	}()
 
-	<-waitUntilConnected
+	checkerFunc := func() {
+		for {
+			select {
+			case <-routineCoordinator.StopSignalChannel:
+				Log.Info("Stop drone helth check loop.")
+				return
+			default:
+
+				ok := true
+				if time.Since(lastTimestampVideoReceived).Seconds() > 5 {
+					Log.Warn("Drone fails to receive video stream.")
+					ok = false
+				}
+
+				if time.Since(lastTimestampFightDataReceived).Seconds() > 5 {
+					Log.Warn("Drone fails to receive flight data.")
+					ok = false
+				}
+
+				if ok {
+					Log.Info("Drone is successfully receiving data.")
+				} else {
+					if robot != nil {
+						robot.Stop()
+						Log.Info("Restarts robot.")
+						go startRobot()
+						time.Sleep(1 * time.Second)
+					}
+				}
+
+				time.Sleep(1 * time.Second)
+			}
+		}
+	}
+
+	go doChecker(checkerFunc)
+	go startRobot()
+
+	Log.Info("Drone starts.")
+	drone.started = true
+}
+
+func doChecker(checkerFunc func()) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered.", r)
+			go doChecker(checkerFunc)
+		}
+	}()
+
+	checkerFunc()
 }
 
 // In case of losing a stop signal (i.e '{ x: 0, y: 0 }' or '{ r: 0, z: 0 }') for some reason,

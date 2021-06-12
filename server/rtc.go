@@ -217,7 +217,9 @@ func (handler *RTCHandler) StartPrimaryConnection(
 		case "connected":
 			routineCoordinator.SendDroneStateChannel("land")
 		case "disconnected":
+			fallthrough
 		case "failed":
+			fallthrough
 		case "closed":
 			routineCoordinator.SendDroneStateChannel("ready")
 		}
