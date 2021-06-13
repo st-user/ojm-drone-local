@@ -289,7 +289,13 @@ func (handler *RTCHandler) StartPrimaryConnection(
 
 	go func() {
 
-		defer handler.rtcPeerConnection.Close()
+		<-routineCoordinator.StopSignalChannel
+
+		handler.rtcPeerConnection.Close()
+	}()
+
+	go func() {
+
 		latest := time.Now()
 
 		for {

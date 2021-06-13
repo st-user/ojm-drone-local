@@ -139,7 +139,12 @@ func restartSignalingConnection(startKeyJsonBytes []byte) {
 }
 
 func startSignalingConnection(connection *websocket.Conn, recoverFunc func()) {
-	defer connection.Close()
+
+	go func() {
+		<-routineCoordinator.StopSignalChannel
+
+		defer connection.Close()
+	}()
 
 	var rtcHandler RTCHandler
 

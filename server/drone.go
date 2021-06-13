@@ -201,21 +201,10 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator) {
 		}
 	}
 
-	go doChecker(checkerFunc)
+	go checkerFunc()
 	startRobot()
 
 	Log.Info("Drone starts.")
-}
-
-func doChecker(checkerFunc func()) {
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Println("Recovered.", r)
-			go doChecker(checkerFunc)
-		}
-	}()
-
-	checkerFunc()
 }
 
 // In case of losing a stop signal (i.e '{ x: 0, y: 0 }' or '{ r: 0, z: 0 }') for some reason,
