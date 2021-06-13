@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/pion/rtcp"
@@ -115,6 +116,7 @@ type RTCHandler struct {
 	peerConnectionId        string
 	audiencePeerConnections map[string]AudiencePeerInfo
 	videoTrack              *webrtc.TrackLocalStaticSample
+	mutex                   sync.Mutex
 }
 
 type AudiencePeerInfo struct {
@@ -137,6 +139,9 @@ func NewRTCHandler(config *webrtc.Configuration) (RTCHandler, error) {
 }
 
 func (handler *RTCHandler) DecidePeerState(peerType PeerType) string {
+	handler.mutex.Lock()
+	defer handler.mutex.Unlock()
+
 	if peerType.IsPrimary {
 		switch handler.peerConnectionId {
 		case "":
@@ -160,12 +165,18 @@ func (handler *RTCHandler) DecidePeerState(peerType PeerType) string {
 }
 
 func (handler *RTCHandler) IsPrimary(peerConnectionId string) bool {
+	handler.mutex.Lock()
+	defer handler.mutex.Unlock()
+
 	return handler.peerConnectionId == peerConnectionId
 }
 
 func (handler *RTCHandler) StartPrimaryConnection(
 	remoteSdp *webrtc.SessionDescription,
 	routineCoordinator *RoutineCoordinator) (*webrtc.SessionDescription, error) {
+
+	handler.mutex.Lock()
+	defer handler.mutex.Unlock()
 
 	cap := webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeH264, ClockRate: 90000}
 	videoTrack, err := webrtc.NewTrackLocalStaticSample(cap, "video", "pion")
@@ -322,6 +333,9 @@ func (handler *RTCHandler) StartAudienceConnection(
 	remoteSdp *webrtc.SessionDescription,
 	routineCoordinator *RoutineCoordinator) (*webrtc.SessionDescription, error) {
 
+	handler.mutex.Lock()
+	defer handler.mutex.Unlock()
+
 	if handler.videoTrack == nil {
 		return nil, errors.New("videoTrack is nil")
 	}
@@ -423,6 +437,9 @@ func (handler *RTCHandler) StartAudienceConnection(
 }
 
 func (handler *RTCHandler) SendAudienceRTCStopChannel(peerConnectionId string) {
+	handler.mutex.Lock()
+	defer handler.mutex.Unlock()
+
 	con, ok := handler.audiencePeerConnections[peerConnectionId]
 	if ok && con.audienceRTCStopChannel != nil {
 		close(con.audienceRTCStopChannel)
@@ -430,6 +447,9 @@ func (handler *RTCHandler) SendAudienceRTCStopChannel(peerConnectionId string) {
 }
 
 func (handler *RTCHandler) DeleteAudience(peerConnectionId string) {
+	handler.mutex.Lock()
+	defer handler.mutex.Unlock()
+
 	audienceInfo, ok := handler.audiencePeerConnections[peerConnectionId]
 	if ok {
 		delete(handler.audiencePeerConnections, peerConnectionId)
