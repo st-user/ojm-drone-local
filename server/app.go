@@ -167,6 +167,7 @@ func startSignalingConnection(connection *websocket.Conn, recoverFunc func()) {
 				}
 				continue
 			}
+			consecutiveErrorOnReadCount = 0
 
 			rtcMessageData, err := NewRTCMessageData(&message)
 			if err != nil {
