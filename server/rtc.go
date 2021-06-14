@@ -124,18 +124,27 @@ type AudiencePeerInfo struct {
 	audienceRTCStopChannel chan struct{}
 }
 
-func NewRTCHandler(config *webrtc.Configuration) (RTCHandler, error) {
-	rtcPeerConnection, err := webrtc.NewPeerConnection(*config)
-	if err != nil {
-		return RTCHandler{}, err
-	}
-
-	return RTCHandler{
-		rtcPeerConnection:       rtcPeerConnection,
-		config:                  config,
+func NewRTCHandler() *RTCHandler {
+	Log.Debug("RTCHandler is initialized.")
+	return &RTCHandler{
 		peerConnectionId:        "",
 		audiencePeerConnections: make(map[string]AudiencePeerInfo),
-	}, nil
+	}
+}
+
+func (handler *RTCHandler) SetConfig(config *webrtc.Configuration) error {
+	handler.mutex.Lock()
+	defer handler.mutex.Unlock()
+
+	rtcPeerConnection, err := webrtc.NewPeerConnection(*config)
+	if err != nil {
+		return err
+	}
+
+	handler.rtcPeerConnection = rtcPeerConnection
+	handler.config = config
+
+	return nil
 }
 
 func (handler *RTCHandler) DecidePeerState(peerType PeerType) string {

@@ -89,7 +89,8 @@ func startApp(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, 
 		return nil, err
 	}
 
-	err = negotiateSignalingConnection(startKeyJsonBytes)
+	rtcHandler := NewRTCHandler()
+	err = negotiateSignalingConnection(startKeyJsonBytes, rtcHandler)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +99,7 @@ func startApp(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, 
 	return &responseBody, nil
 }
 
-func negotiateSignalingConnection(startKeyJsonBytes []byte) error {
+func negotiateSignalingConnection(startKeyJsonBytes []byte, rtcHandler *RTCHandler) error {
 	copyStartKeyJsonBytes := make([]byte, len(startKeyJsonBytes))
 	copy(copyStartKeyJsonBytes, startKeyJsonBytes)
 
@@ -123,17 +124,18 @@ func negotiateSignalingConnection(startKeyJsonBytes []byte) error {
 		return err
 	}
 	var retryCount int
-	go startSignalingConnection(conn, func() {
-		restartSignalingConnection(copyStartKeyJsonBytes, retryCount)
+
+	go startSignalingConnection(conn, rtcHandler, func() {
+		restartSignalingConnection(copyStartKeyJsonBytes, retryCount, rtcHandler)
 	})
 
 	return nil
 }
 
-func restartSignalingConnection(startKeyJsonBytes []byte, retryCount int) {
+func restartSignalingConnection(startKeyJsonBytes []byte, retryCount int, rtcHandler *RTCHandler) {
 	b := make([]byte, len(startKeyJsonBytes))
 	copy(b, startKeyJsonBytes)
-	err := negotiateSignalingConnection(b)
+	err := negotiateSignalingConnection(b, rtcHandler)
 	if err != nil {
 		maxRetry := ENV.GetInt("SIGNALING_ENDPOINT_MAX_RETRY")
 		if maxRetry < retryCount {
@@ -145,11 +147,11 @@ func restartSignalingConnection(startKeyJsonBytes []byte, retryCount int) {
 		interval := ENV.GetDuration("SIGNALING_ENDPOINT_RETRY_INTERVAL")
 		time.Sleep(interval)
 		retryCount = retryCount + 1
-		restartSignalingConnection(startKeyJsonBytes, retryCount)
+		restartSignalingConnection(startKeyJsonBytes, retryCount, rtcHandler)
 	}
 }
 
-func startSignalingConnection(connection *websocket.Conn, recoverFunc func()) {
+func startSignalingConnection(connection *websocket.Conn, rtcHandler *RTCHandler, recoverFunc func()) {
 	connectionStoppedChannel := make(chan struct{})
 
 	go func() {
@@ -161,8 +163,6 @@ func startSignalingConnection(connection *websocket.Conn, recoverFunc func()) {
 		}
 
 	}()
-
-	var rtcHandler RTCHandler
 
 	var consecutiveErrorOnReadCount int
 	for {
@@ -205,7 +205,8 @@ func startSignalingConnection(connection *websocket.Conn, recoverFunc func()) {
 					Log.Info("%v", err)
 					continue
 				}
-				rtcHandler, err = NewRTCHandler(config)
+
+				err = rtcHandler.SetConfig(config)
 				if err != nil {
 					Log.Info("%v", err)
 					continue
