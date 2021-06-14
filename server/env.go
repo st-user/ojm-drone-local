@@ -4,10 +4,36 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 )
 
-func loadEnvFrom(path string) map[string]string {
+type Environment struct {
+	data map[string]string
+}
+
+func (env *Environment) Get(key string) string {
+	return env.data[key]
+}
+
+func (env *Environment) GetInt(key string) int {
+	ret, err := strconv.Atoi(env.Get(key))
+	if err != nil {
+		return 0
+	}
+	return ret
+}
+
+func (env *Environment) GetDuration(key string) time.Duration {
+	ret, err := time.ParseDuration(env.Get(key))
+	if err != nil {
+		return 0
+	}
+	return ret
+}
+
+func loadEnvFrom(path string) Environment {
 	body, err := ioutil.ReadFile(path)
 
 	if err != nil {
@@ -32,10 +58,12 @@ func loadEnvFrom(path string) map[string]string {
 		ret[key] = value
 	}
 
-	return ret
+	return Environment{
+		data: ret,
+	}
 }
 
-func loadEnv() map[string]string {
+func loadEnv() Environment {
 	path := ".env"
 	_path := os.Getenv("GO_ENV_FILE_PATH")
 

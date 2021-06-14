@@ -16,10 +16,10 @@ import (
 
 var ENV = loadEnv()
 var routineCoordinator = RoutineCoordinator{}
-var Log = NewLogger(ENV["LOG_LEVEL"])
+var Log = NewLogger(ENV.Get("LOG_LEVEL"))
 
 func toEndpointUrlWithTrailingSlash() string {
-	endpoint := ENV["SIGNALING_ENDPOINT"]
+	endpoint := ENV.Get("SIGNALING_ENDPOINT")
 	if "/" != string(endpoint[len(endpoint)-1]) {
 		endpoint = endpoint + "/"
 	}
@@ -40,7 +40,7 @@ func generateKey(w http.ResponseWriter, r *http.Request) (*map[string]interface{
 
 	client := &http.Client{}
 	url := toEndpointUrlWithTrailingSlash() + "generateKey"
-	secret := ENV["SECRET"]
+	secret := ENV.Get("SECRET")
 
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Set("Authorization", "bearer "+secret)
@@ -99,6 +99,8 @@ func startApp(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, 
 }
 
 func negotiateSignalingConnection(startKeyJsonBytes []byte) error {
+	copyStartKeyJsonBytes := make([]byte, len(startKeyJsonBytes))
+	copy(copyStartKeyJsonBytes, startKeyJsonBytes)
 
 	baseUrl := toEndpointUrlWithTrailingSlash()
 	ticketUrl := baseUrl + "ticket"
@@ -120,30 +122,44 @@ func negotiateSignalingConnection(startKeyJsonBytes []byte) error {
 	if err != nil {
 		return err
 	}
-
+	var retryCount int
 	go startSignalingConnection(conn, func() {
-		b := make([]byte, len(startKeyJsonBytes))
-		copy(b, startKeyJsonBytes)
-		restartSignalingConnection(b)
+		restartSignalingConnection(copyStartKeyJsonBytes, retryCount)
 	})
 
 	return nil
 }
 
-func restartSignalingConnection(startKeyJsonBytes []byte) {
-	err := negotiateSignalingConnection(startKeyJsonBytes)
+func restartSignalingConnection(startKeyJsonBytes []byte, retryCount int) {
+	b := make([]byte, len(startKeyJsonBytes))
+	copy(b, startKeyJsonBytes)
+	err := negotiateSignalingConnection(b)
 	if err != nil {
-		time.Sleep(1 * time.Second)
-		restartSignalingConnection(startKeyJsonBytes)
+		maxRetry := ENV.GetInt("SIGNALING_ENDPOINT_MAX_RETRY")
+		if maxRetry < retryCount {
+			Log.Info("Fails to connect to the signaling channel. Retry count exceeds max.")
+			routineCoordinator.StopApp()
+			return
+		}
+
+		interval := ENV.GetDuration("SIGNALING_ENDPOINT_RETRY_INTERVAL")
+		time.Sleep(interval)
+		retryCount = retryCount + 1
+		restartSignalingConnection(startKeyJsonBytes, retryCount)
 	}
 }
 
 func startSignalingConnection(connection *websocket.Conn, recoverFunc func()) {
+	connectionStoppedChannel := make(chan struct{})
 
 	go func() {
-		<-routineCoordinator.StopSignalChannel
+		select {
+		case <-connectionStoppedChannel:
+			connection.Close()
+		case <-routineCoordinator.StopSignalChannel:
+			connection.Close()
+		}
 
-		defer connection.Close()
 	}()
 
 	var rtcHandler RTCHandler
@@ -162,7 +178,8 @@ func startSignalingConnection(connection *websocket.Conn, recoverFunc func()) {
 				consecutiveErrorOnReadCount++
 				Log.Info("%v", err)
 				if 10 < consecutiveErrorOnReadCount {
-					routineCoordinator.StopApp()
+					recoverFunc()
+					close(connectionStoppedChannel)
 					return
 				}
 				continue
@@ -330,7 +347,7 @@ func land(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, erro
 
 func routes() {
 
-	port := ENV["PORT"]
+	port := ENV.Get("PORT")
 	Log.Info("PORT:" + port)
 
 	routineCoordinator.InitRoutineCoordinator(true)
