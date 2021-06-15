@@ -1,3 +1,3 @@
-import main from './js/main.ts';
+import main from './js/main';
 
 main();
