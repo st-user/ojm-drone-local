@@ -16,7 +16,7 @@ import (
 
 var ENV = loadEnv()
 var routineCoordinator = RoutineCoordinator{}
-var Log = NewLogger(ENV.Get("LOG_LEVEL"))
+var Log = NewLogger(ENV.Get("LOG_LEVEL"), ENV.Get("DUMP_LOG_FILE_PATH"))
 
 func toEndpointUrlWithTrailingSlash() string {
 	endpoint := ENV.Get("SIGNALING_ENDPOINT")

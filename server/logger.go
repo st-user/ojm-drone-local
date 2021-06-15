@@ -17,9 +17,10 @@ type Logger struct {
 	debug *log.Logger
 	info  *log.Logger
 	warn  *log.Logger
+	dump  *log.Logger
 }
 
-func NewLogger(levelStr string) Logger {
+func NewLogger(levelStr string, dumpFilePath string) Logger {
 	levelInt := 1
 	levelStr = strings.ToUpper(levelStr)
 	switch levelStr {
@@ -33,11 +34,17 @@ func NewLogger(levelStr string) Logger {
 		log.Fatalf("Invalid log level: %v", levelStr)
 	}
 
+	fileToDump, err := os.OpenFile(dumpFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0755)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	return Logger{
 		level: levelInt,
 		debug: log.New(os.Stdout, "[DEBUG]: ", log.Ldate|log.Ltime),
 		info:  log.New(os.Stdout, "[INFO]: ", log.Ldate|log.Ltime),
 		warn:  log.New(os.Stdout, "[WARN]: ", log.Ldate|log.Ltime),
+		dump:  log.New(fileToDump, "", log.Ltime),
 	}
 }
 
@@ -57,4 +64,8 @@ func (logger *Logger) Warn(format string, v ...interface{}) {
 	if logger.level <= warn {
 		logger.warn.Printf(format, v...)
 	}
+}
+
+func (logger *Logger) Dump(format string, v ...interface{}) {
+	logger.dump.Printf(format, v...)
 }
