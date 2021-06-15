@@ -358,8 +358,8 @@ func routes() {
 	server := NewOutboundRelayMessageServer()
 
 	http.HandleFunc("/", index(&statics))
-	http.HandleFunc("/main.js", statics.ToHandleFunc("main.js"))
-	http.HandleFunc("/main.css", statics.ToHandleFunc("main.css"))
+	http.HandleFunc("/js/main.js", statics.ToHandleFunc("js/main.js"))
+	http.HandleFunc("/js/style.js", statics.ToHandleFunc("js/style.js"))
 	http.HandleFunc("/waiting.html", statics.ToHandleFunc("waiting.html"))
 
 	HandleFuncJSON("/generateKey", generateKey)

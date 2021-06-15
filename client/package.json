@@ -1,11 +1,21 @@
 {
   "name": "ojm-drone-local",
   "version": "1.2.0",
-  "description": "TODO",
-  "main": "index.js",
+  "description": "ojm-drone-local (client side)",
+  "main": "index.ts",
   "scripts": {
-    "lint:js": "eslint 'static/**/*.js'",
-    "lint:css": "stylelint 'static/**/*.css'"
+    "clean": "rm -Rf ./dist && rm -Rf dist-discard && rm -Rf scss-dest",
+    "build": "node-sass scss --output scss-dest --output-style compressed && node-sass base-scss --output scss-dest --output-style compressed && webpack --config webpack.prod.js && node ./build-util/bu.js",
+    "build:test": "webpack --config webpack.dev.js",
+    "build:watch": "webpack --config webpack.dev.js --watch",
+    "license-gen": "webpack --config webpack.license-gen.js",
+    "start": "webpack serve --config webpack.dev.js",
+    "lint:js-one": "eslint",
+    "lint:js": "eslint 'src/**/*.js'",
+    "lint:ts": "eslint 'src/**/*.ts'",
+    "lint:css": "stylelint 'scss/**/*.scss'",
+    "lint:html": "htmlhint 'html/index.html'",
+    "build-css": "node-sass scss --output scss-dest --output-style compressed && node-sass base-scss --output scss-dest --output-style compressed"
   },
   "repository": {
     "type": "git",
@@ -18,8 +28,24 @@
   },
   "homepage": "https://github.com/st-user/ojm-drone-local#readme",
   "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^4.27.0",
+    "@typescript-eslint/parser": "^4.27.0",
     "eslint": "^7.28.0",
     "stylelint": "^13.13.1",
-    "stylelint-config-standard": "^22.0.0"
+    "stylelint-config-standard": "^22.0.0",
+    "ts-loader": "^9.2.3",
+    "typescript": "^4.3.2",
+    "webpack": "^5.39.0",
+    "webpack-cli": "^4.7.2",
+    "clean-webpack-plugin": "^3.0.0",
+    "copy-webpack-plugin": "^9.0.0",
+    "css-loader": "^5.2.6",
+    "htmlhint": "^0.15.1",
+    "node-sass": "^6.0.0",
+    "style-loader": "^2.0.0",
+    "stylelint-config-sass-guidelines": "^8.0.0",
+    "stylelint-no-unsupported-browser-features": "^5.0.1",
+    "webpack-license-plugin": "^4.1.2",
+    "webpack-merge": "^5.8.0"
   }
 }

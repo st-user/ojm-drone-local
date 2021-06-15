@@ -1,3 +1,7 @@
 .env
 node_modules
 .vscode
+client/dist/
+client/dist-discard/
+client/scss-dest
+.DS_Store
