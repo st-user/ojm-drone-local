@@ -1,5 +1,5 @@
 import { CommonEventDispatcher, DOM } from 'client-js-lib';
-import { CustomEventNames } from './CustomEventNames.ts';
+import { CustomEventNames } from './CustomEventNames';
 
 import MainControlModel from './MainControlModel';
 import ViewStateModel from './ViewStateModel';
