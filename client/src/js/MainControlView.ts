@@ -21,12 +21,13 @@ export default class MainControlView {
         this.viewStateModel = viewStateModel;
         this.mainControlModel = mainControlModel;
 
-        this.$startKey = DOM.query('#startKey');
-        this.$generateKey = DOM.query('#generateKey');
-        this.$start = DOM.query('#start');
+        
+        this.$startKey = DOM.query('#startKey')!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
+        this.$generateKey = DOM.query('#generateKey')!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
+        this.$start = DOM.query('#start')!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
 
-        this.$takeoff = DOM.query('#takeoff');
-        this.$land = DOM.query('#land');
+        this.$takeoff = DOM.query('#takeoff')!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
+        this.$land = DOM.query('#land')!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
     }
     
     setUpEvent(): void {
@@ -69,7 +70,7 @@ export default class MainControlView {
             await this.mainControlModel.land();
         });
 
-        CommonEventDispatcher.on(CustomEventNames.OJM_DRONE_LOCAL__VIEW_STATE_CHANGED, () => {
+        CommonEventDispatcher.on(CustomEventNames.get('OJM_DRONE_LOCAL__VIEW_STATE_CHANGED'), () => {
             this.render();
         });
 

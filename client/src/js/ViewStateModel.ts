@@ -55,6 +55,6 @@ export default class ViewStateModel {
 
     private setState(value: State): void {
         this.state = value;
-        CommonEventDispatcher.dispatch(CustomEventNames.OJM_DRONE_LOCAL__VIEW_STATE_CHANGED);
+        CommonEventDispatcher.dispatch(CustomEventNames.get('OJM_DRONE_LOCAL__VIEW_STATE_CHANGED'));
     }
 }
