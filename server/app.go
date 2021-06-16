@@ -17,6 +17,7 @@ import (
 var ENV = loadEnv()
 var routineCoordinator = RoutineCoordinator{}
 var Log = NewLogger(ENV.Get("LOG_LEVEL"), ENV.Get("DUMP_LOG_FILE_PATH"))
+var applicationStates = NewApplicationStates()
 
 func toEndpointUrlWithTrailingSlash() string {
 	endpoint := ENV.Get("SIGNALING_ENDPOINT")
@@ -26,21 +27,73 @@ func toEndpointUrlWithTrailingSlash() string {
 	return endpoint
 }
 
-func index(statics *Statics) func(w http.ResponseWriter, r *http.Request) {
+func checkAccessTokenSaved(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, error) {
 
-	return func(w http.ResponseWriter, r *http.Request) {
-		if !routineCoordinator.IsStopped {
-			routineCoordinator.StopApp()
-		}
-		statics.ToHandleFunc("index.html")(w, r)
+	keyChainManager := NewKeyChainManager()
+	_, desc, err := keyChainManager.GetTokenAndDesc()
+
+	if err != nil {
+		return nil, err
 	}
+
+	return &map[string]interface{}{
+		"accessTokenDesc": desc,
+	}, nil
+}
+
+func updateAccessToken(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, error) {
+
+	decoder := json.NewDecoder(r.Body)
+	bodyJson := make(map[string]string)
+	err := decoder.Decode(&bodyJson)
+
+	if err != nil {
+		return nil, err
+	}
+	token := bodyJson["accessToken"]
+
+	keyChainManager := NewKeyChainManager()
+	_, desc, err := keyChainManager.UpdateToken(token)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &map[string]interface{}{
+		"accessTokenDesc": desc,
+	}, nil
+}
+
+func deleteAccessToken(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, error) {
+
+	keyChainManager := NewKeyChainManager()
+	err := keyChainManager.DeleteToken()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &map[string]interface{}{}, nil
+}
+
+func checkDroneHealth(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, error) {
+	return &map[string]interface{}{
+		"health":       applicationStates.DroneStates.DroneHealth(),
+		"batteryLevel": applicationStates.DroneStates.BatteryLevel(),
+	}, nil
 }
 
 func generateKey(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, error) {
 
 	client := &http.Client{}
 	url := toEndpointUrlWithTrailingSlash() + "generateKey"
-	secret := ENV.Get("SECRET")
+
+	KeyChainManager := NewKeyChainManager()
+	secret, err := KeyChainManager.GetToken()
+
+	if err != nil {
+		return nil, err
+	}
 
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Set("Authorization", "bearer "+secret)
@@ -100,6 +153,7 @@ func startApp(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, 
 }
 
 func negotiateSignalingConnection(startKeyJsonBytes []byte, rtcHandler *RTCHandler) error {
+
 	copyStartKeyJsonBytes := make([]byte, len(startKeyJsonBytes))
 	copy(copyStartKeyJsonBytes, startKeyJsonBytes)
 
@@ -279,7 +333,7 @@ func startSignalingConnection(connection *websocket.Conn, rtcHandler *RTCHandler
 
 				if rtcHandler.IsPrimary(peerConnectionId) {
 					drone := NewDrone()
-					drone.Start(&routineCoordinator)
+					drone.Start(&routineCoordinator, applicationStates)
 					localDescription, err = rtcHandler.StartPrimaryConnection(sdp, &routineCoordinator)
 				} else {
 					localDescription, err = rtcHandler.StartAudienceConnection(peerConnectionId, sdp, &routineCoordinator)
@@ -357,10 +411,10 @@ func routes() {
 	statics := NewStatics()
 	server := NewOutboundRelayMessageServer()
 
-	http.HandleFunc("/", index(&statics))
-	http.HandleFunc("/js/main.js", statics.ToHandleFunc("js/main.js"))
-	http.HandleFunc("/js/style.js", statics.ToHandleFunc("js/style.js"))
-
+	HandleFuncJSON("/checkAccessTokenSaved", checkAccessTokenSaved)
+	HandleFuncJSON("/updateAccessToken", updateAccessToken)
+	HandleFuncJSON("/deleteAccessToken", deleteAccessToken)
+	HandleFuncJSON("/checkDroneHealth", checkDroneHealth)
 	HandleFuncJSON("/generateKey", generateKey)
 	HandleFuncJSON("/startApp", startApp)
 	HandleFuncJSON("/healthCheck", healthCheck)
@@ -368,6 +422,19 @@ func routes() {
 	HandleFuncJSON("/land", land)
 
 	http.HandleFunc("/state", state(&server))
+
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+
+		filename := r.URL.Path[len("/"):]
+
+		if filename == "index.html" || filename == "" {
+			if !routineCoordinator.IsStopped {
+				routineCoordinator.StopApp()
+			}
+		}
+
+		statics.HandleStatic(w, r)
+	})
 
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }

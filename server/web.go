@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -11,9 +10,26 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+var mimeTypes = map[string]string{
+	".html": "text/html",
+	".js":   "text/javascript",
+	".css":  "text/css",
+	".json": "application/json",
+	".png":  "image/png",
+	".jpg":  "image/jpg",
+	".gif":  "image/gif",
+	".svg":  "image/svg+xml",
+	".wav":  "audio/wav",
+	".mp4":  "video/mp4",
+	".woff": "application/font-woff",
+	".ttf":  "application/font-ttf",
+	".eot":  "application/vnd.ms-fontobject",
+	".otf":  "application/font-otf",
+	".wasm": "application/wasm",
+}
+
 type Statics struct {
-	dir      string
-	contents map[string][]byte
+	dir string
 }
 
 func NewStatics() Statics {
@@ -25,20 +41,42 @@ func NewStatics() Statics {
 	}
 
 	return Statics{
-		dir:      dir,
-		contents: make(map[string][]byte),
+		dir: dir,
 	}
 }
 
-func (s *Statics) ToHandleFunc(filename string) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		path := filepath.Join(s.dir, filename)
-		_body, err := ioutil.ReadFile(path)
-		if err != nil {
-			log.Fatal(err)
-		}
-		w.Write(_body)
+func (s *Statics) HandleStatic(w http.ResponseWriter, r *http.Request) {
+
+	filename := r.URL.Path[len("/"):]
+	ext := filepath.Ext(filename)
+	mimeType, ok := mimeTypes[ext]
+
+	if !ok {
+		mimeType = "application/octet-stream"
 	}
+
+	if filename == "" {
+		filename = "index.html"
+		mimeType = "text/html"
+	}
+
+	path := filepath.Join(s.dir, filename)
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			w.WriteHeader(404)
+		} else {
+			w.WriteHeader(500)
+		}
+		return
+	}
+
+	_body, err := ioutil.ReadFile(path)
+	if err != nil {
+		w.WriteHeader(500)
+		return
+	}
+	w.Header().Add("Content-Type", mimeType)
+	w.Write(_body)
 }
 
 func HandleFuncJSON(
@@ -54,7 +92,7 @@ func HandleFuncJSON(
 		w.Header().Set("Content-Type", "application/json")
 		if err != nil {
 			Log.Warn("%v", err)
-			writeInternalServerError(w, &err)
+			WriteInternalServerError(w, &err)
 			return
 		}
 
@@ -62,7 +100,7 @@ func HandleFuncJSON(
 	})
 }
 
-func writeInternalServerError(w http.ResponseWriter, err *error) {
+func WriteInternalServerError(w http.ResponseWriter, err *error) {
 	w.WriteHeader(500)
 	Log.Info("%v", err)
 }
@@ -93,7 +131,7 @@ func (ws *OutboundRelayMessageServer) HandleMessage(
 
 	conn, err := ws.upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		writeInternalServerError(w, &err)
+		WriteInternalServerError(w, &err)
 		return
 	}
 	Log.Info("Connected.")

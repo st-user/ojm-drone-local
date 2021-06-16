@@ -21,7 +21,7 @@ func NewDrone() Drone {
 	}
 }
 
-func (drone *Drone) Start(routineCoordinator *RoutineCoordinator) {
+func (drone *Drone) Start(routineCoordinator *RoutineCoordinator, applicationStates *ApplicationStates) {
 
 	var driver *tello.Driver
 	var robot *gobot.Robot
@@ -49,7 +49,10 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator) {
 
 			if 3 < time.Since(lastLoggedTime).Seconds() {
 				fd := data.(*tello.FlightData)
+
 				Log.Info("Battery level %v%%", fd.BatteryPercentage)
+				applicationStates.DroneStates.SetBatteryLevel(fd.BatteryPercentage)
+
 				lastLoggedTime = time.Now()
 			}
 		})
@@ -171,6 +174,9 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator) {
 		for {
 			select {
 			case <-routineCoordinator.StopSignalChannel:
+
+				applicationStates.DroneStates.SetDroneHealth(DRONE_HEALTH_UNKNOWN)
+
 				Log.Info("Stop drone helth check loop.")
 				robot.Stop()
 				return
@@ -188,8 +194,12 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator) {
 				}
 
 				if ok {
+					applicationStates.DroneStates.SetDroneHealth(DRONE_HEALTH_OK)
+
 					Log.Debug("Drone is successfully receiving data.")
 				} else {
+					applicationStates.DroneStates.SetDroneHealth(DRONE_HEALTH_NG)
+
 					robot.Stop()
 					Log.Info("Restarts robot.")
 					startRobot()

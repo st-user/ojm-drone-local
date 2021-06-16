@@ -1,15 +1,64 @@
+import { CommonEventDispatcher } from 'client-js-lib';
+import { CustomEventNames } from './CustomEventNames';
 import ViewStateModel from './ViewStateModel';
 
 const HEALTH_CHECK_INTERVAL = 1000;
 
+const DRONE_HEALTH_DESCS = ['-', 'OK', 'NG'];
+
+class DroneHealth {
+
+    health: string;
+    batteryLevel: string;
+
+    constructor() {
+        this.health = '-';
+        this.batteryLevel = '-%';
+    }
+
+    setData(_health: number, _batteryLevel: number): void {
+        this.health = DRONE_HEALTH_DESCS[_health] || '-';
+        if (_health === 0) {
+            this.batteryLevel = '-%';
+        } else {
+            this.batteryLevel = `${_batteryLevel}%`;
+        }
+        
+    }
+}
+
 export default class MainControlModel {
 
     private readonly viewStateModel: ViewStateModel;
-    private checkStarting: boolean;   
+    private checkStarting: boolean;
+    private readonly droneHealth: DroneHealth
 
     constructor(viewStateModel: ViewStateModel) {
         this.viewStateModel = viewStateModel;
         this.checkStarting = false;
+        this.droneHealth = new DroneHealth();
+    }
+
+    async init(): Promise<void> {
+        await this.droneHealthCheck();
+    }
+
+    private async droneHealthCheck(): Promise<void> {
+
+        await fetch('/checkDroneHealth')
+            .then(res => res.json())
+            .then(ret => {
+                const health = ret.health;
+                const batteryLevel = ret.batteryLevel;
+
+                this.droneHealth.setData(health, batteryLevel);
+
+                CommonEventDispatcher.dispatch(CustomEventNames.OJM_DRONE_LOCAL__DRONE_HEALTH_CHECKED);
+            });
+
+        setTimeout(async () => {
+            await this.droneHealthCheck();
+        }, 3000);
     }
 
     async generateKey(startKeyConsumer: (startKey: string) => void): Promise<void> {
@@ -124,4 +173,7 @@ export default class MainControlModel {
         await fetch('/land').then(res => res.json());
     }
 
+    getDroneHealth(): DroneHealth {
+        return this.droneHealth;
+    }
 }
