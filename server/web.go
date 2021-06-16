@@ -32,21 +32,12 @@ func NewStatics() Statics {
 
 func (s *Statics) ToHandleFunc(filename string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		body, ok := s.contents[filename]
-		if !ok {
-			path := filepath.Join(s.dir, filename)
-
-			_body, err := ioutil.ReadFile(path)
-
-			if err != nil {
-				log.Fatal(err)
-			}
-			_copy := make([]byte, len(_body))
-			copy(_copy, _body)
-			s.contents[filename] = _copy
-			body = _body
+		path := filepath.Join(s.dir, filename)
+		_body, err := ioutil.ReadFile(path)
+		if err != nil {
+			log.Fatal(err)
 		}
-		w.Write(body)
+		w.Write(_body)
 	}
 }
 
