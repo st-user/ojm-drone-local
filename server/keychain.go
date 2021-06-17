@@ -1,28 +1,57 @@
 package main
 
 import (
+	"errors"
 	"os"
+	"runtime"
 
+	"github.com/danieljoos/wincred"
 	"github.com/keybase/go-keychain"
 )
 
-type KeyChainManager struct {
+type KeyChainManager interface {
+	SetToken(token string) error
+	UpdateToken(token string) (string, string, error)
+	GetToken() (string, error)
+	GetTokenAndDesc() (string, string, error)
+	DeleteToken() error
+}
+
+type MacOSKeyChainManager struct {
 	service string
 	group   string
 	account string
 	label   string
 }
 
-func NewKeyChainManager() KeyChainManager {
-	return KeyChainManager{
-		service: "com.ajizablg.ojm-drone/access-token",
-		group:   "com.ajizablg.ojm-drone",
-		account: os.Getenv("USER"),
-		label:   "OJM-Drone Access Token",
+type WindowsKeyChainManager struct {
+	targetName string
+}
+
+func NewKeyChainManager() (KeyChainManager, error) {
+	runtimeOs := runtime.GOOS
+
+	switch runtimeOs {
+	case "windows":
+		return &WindowsKeyChainManager{
+			targetName: "com.ajizablg.ojm-drone/access-token",
+		}, nil
+
+	case "darwin":
+		return &MacOSKeyChainManager{
+			service: "com.ajizablg.ojm-drone/access-token",
+			group:   "com.ajizablg.ojm-drone",
+			account: os.Getenv("USER"),
+			label:   "OJM-Drone Access Token",
+		}, nil
+	case "linux":
+		fallthrough
+	default:
+		return nil, errors.New("your OS is not supported")
 	}
 }
 
-func (km *KeyChainManager) SetToken(token string) error {
+func (km *MacOSKeyChainManager) SetToken(token string) error {
 
 	item := keychain.NewGenericPassword(
 		km.service, km.account, km.label, []byte(token), km.group)
@@ -37,7 +66,20 @@ func (km *KeyChainManager) SetToken(token string) error {
 	return nil
 }
 
-func (km *KeyChainManager) UpdateToken(token string) (string, string, error) {
+func (km *WindowsKeyChainManager) SetToken(token string) error {
+
+	cred := wincred.NewGenericCredential(km.targetName)
+	cred.CredentialBlob = []byte(token)
+	err := cred.Write()
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (km *MacOSKeyChainManager) UpdateToken(token string) (string, string, error) {
 
 	desc := makeTokenDesc(token)
 
@@ -62,7 +104,19 @@ func (km *KeyChainManager) UpdateToken(token string) (string, string, error) {
 	return token, desc, err
 }
 
-func (km *KeyChainManager) GetToken() (string, error) {
+func (km *WindowsKeyChainManager) UpdateToken(token string) (string, string, error) {
+
+	desc := makeTokenDesc(token)
+	err := km.SetToken(token)
+
+	if err != nil {
+		return token, desc, err
+	}
+
+	return token, desc, err
+}
+
+func (km *MacOSKeyChainManager) GetToken() (string, error) {
 
 	token, err := keychain.GetGenericPassword(km.service, km.account, km.label, km.group)
 	if err != nil {
@@ -72,7 +126,17 @@ func (km *KeyChainManager) GetToken() (string, error) {
 	return string(token), nil
 }
 
-func (km *KeyChainManager) GetTokenAndDesc() (string, string, error) {
+func (km *WindowsKeyChainManager) GetToken() (string, error) {
+
+	cred, err := wincred.GetGenericCredential(km.targetName)
+	if err != nil {
+		return "", nil
+	}
+
+	return string(cred.CredentialBlob), nil
+}
+
+func (km *MacOSKeyChainManager) GetTokenAndDesc() (string, string, error) {
 
 	token, err := km.GetToken()
 	if err != nil {
@@ -82,7 +146,17 @@ func (km *KeyChainManager) GetTokenAndDesc() (string, string, error) {
 	return token, makeTokenDesc(token), nil
 }
 
-func (km *KeyChainManager) DeleteToken() error {
+func (km *WindowsKeyChainManager) GetTokenAndDesc() (string, string, error) {
+
+	token, err := km.GetToken()
+	if err != nil {
+		return "", "", err
+	}
+
+	return token, makeTokenDesc(token), nil
+}
+
+func (km *MacOSKeyChainManager) DeleteToken() error {
 
 	item := keychain.NewItem()
 	item.SetSecClass(keychain.SecClassGenericPassword)
@@ -92,6 +166,22 @@ func (km *KeyChainManager) DeleteToken() error {
 	item.SetLabel(km.label)
 	err := keychain.DeleteItem(item)
 
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (km *WindowsKeyChainManager) DeleteToken() error {
+
+	cred, err := wincred.GetGenericCredential(km.targetName)
+	if err != nil {
+		return err
+
+	}
+
+	err = cred.Delete()
 	if err != nil {
 		return err
 	}

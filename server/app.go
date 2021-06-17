@@ -19,6 +19,7 @@ var Log = NewLogger(ENV.Get("LOG_LEVEL"), ENV.Get("DUMP_LOG_FILE_PATH"))
 
 var routineCoordinator = RoutineCoordinator{}
 var applicationStates = NewApplicationStates()
+var keyChainManager KeyChainManager
 
 func toEndpointUrlWithTrailingSlash() string {
 	endpoint := ENV.Get("SIGNALING_ENDPOINT")
@@ -40,7 +41,6 @@ func createAuthorizationRequest(path string, token string) (*http.Request, error
 
 func checkAccessTokenSaved(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, error) {
 
-	keyChainManager := NewKeyChainManager()
 	_, desc, err := keyChainManager.GetTokenAndDesc()
 
 	if err != nil {
@@ -76,7 +76,6 @@ func updateAccessToken(w http.ResponseWriter, r *http.Request) (*map[string]inte
 		return nil, fmt.Errorf("encounters an error during handling response. %v %v", err, res.Status)
 	}
 
-	keyChainManager := NewKeyChainManager()
 	_, desc, err := keyChainManager.UpdateToken(token)
 
 	if err != nil {
@@ -90,7 +89,6 @@ func updateAccessToken(w http.ResponseWriter, r *http.Request) (*map[string]inte
 
 func deleteAccessToken(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, error) {
 
-	keyChainManager := NewKeyChainManager()
 	err := keyChainManager.DeleteToken()
 
 	if err != nil {
@@ -109,8 +107,7 @@ func checkDroneHealth(w http.ResponseWriter, r *http.Request) (*map[string]inter
 
 func generateKey(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, error) {
 
-	KeyChainManager := NewKeyChainManager()
-	token, err := KeyChainManager.GetToken()
+	token, err := keyChainManager.GetToken()
 
 	if err != nil {
 		return nil, err
@@ -433,6 +430,12 @@ func routes() {
 
 	routineCoordinator.InitRoutineCoordinator(true)
 	routineCoordinator.IsStopped = true
+
+	km, err := NewKeyChainManager()
+	if err != nil {
+		panic(err)
+	}
+	keyChainManager = km
 
 	statics := NewStatics()
 	server := NewOutboundRelayMessageServer()
