@@ -26,8 +26,8 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator, applicationSta
 	var driver *tello.Driver
 	var robot *gobot.Robot
 
-	lastTimestampVideoReceived := time.Now()
-	lastTimestampFightDataReceived := time.Now()
+	lastTimestampVideoReceived := time.Now().Add(-1 * time.Hour)
+	lastTimestampFightDataReceived := time.Now().Add(-1 * time.Hour)
 
 	startRobot := func() {
 

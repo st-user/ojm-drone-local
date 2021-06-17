@@ -6,26 +6,58 @@ const HEALTH_CHECK_INTERVAL = 1000;
 
 const DRONE_HEALTH_DESCS = ['-', 'OK', 'NG'];
 
+enum BatteryLevelWarningState {
+    Unknown,
+    Low,
+    Middle,
+    High
+}
+
+enum DroneHealthState {
+    Unknown,
+	Ok,
+	Ng,
+}
+
 class DroneHealth {
 
-    health: string;
-    batteryLevel: string;
+    private _health: DroneHealthState;
+    private _batteryLevel: BatteryLevelWarningState;
 
     constructor() {
-        this.health = '-';
-        this.batteryLevel = '-%';
+        this._health = DroneHealthState.Unknown;
+        this._batteryLevel = BatteryLevelWarningState.Unknown;
     }
 
     setData(_health: number, _batteryLevel: number): void {
-        this.health = DRONE_HEALTH_DESCS[_health] || '-';
-        if (_health === 0) {
-            this.batteryLevel = '-%';
-        } else {
-            this.batteryLevel = `${_batteryLevel}%`;
+        this._health = _health;
+        this._batteryLevel = _batteryLevel;
+    }
+
+    getHealthInfo(): { state: DroneHealthState, desc: string } {
+        return { state: this._health, desc:  DRONE_HEALTH_DESCS[this._health] || '-' };
+    }
+
+    getBatteryLevelInfo(): { state: BatteryLevelWarningState, desc: string } {
+
+        if (this._health !== DroneHealthState.Ok) {
+            return { state: BatteryLevelWarningState.Unknown, desc: '-%' };
+
         }
-        
+
+        if (this._batteryLevel <= 20) {
+            return { state: BatteryLevelWarningState.Low, desc: `${this._batteryLevel}%` };
+        }
+
+        if (this._batteryLevel <= 50) {
+            return { state: BatteryLevelWarningState.Middle, desc: `${this._batteryLevel}%` };
+        }
+
+        return { state: BatteryLevelWarningState.High, desc: `${this._batteryLevel}%` };
     }
 }
+
+export { DroneHealthState, BatteryLevelWarningState };
 
 export default class MainControlModel {
 

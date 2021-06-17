@@ -1,0 +1,31 @@
+.setup-area {
+    &__item {
+        margin: auto;
+        max-width: 540px;
+    }
+
+    &__title {
+        font-weight: bold;
+        margin-bottom: 12px;
+    }
+
+    &__confirmation {
+        text-align: right;
+    }
+
+    &__saved-access-token {
+        height: 24px;
+        line-height: 1;
+        margin-bottom: 12px;
+    }
+
+    &__saved-access-token-title {
+        display: inline-block;
+        width: 150px;
+    }
+
+    &__saved-access-token-value {
+        display: inline-block;
+        font-weight: blod;
+    }
+}

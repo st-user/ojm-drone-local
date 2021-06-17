@@ -1,5 +1,10 @@
 @import 'node_modules/vanilla-framework/scss/vanilla';
-@include vanilla;
+
+@include vf-base;
+@include vf-p-heading-icon;
+@include vf-p-buttons;
+@include vf-p-card;
+@include vf-p-tabs;
 
 ul {
     list-style: none;

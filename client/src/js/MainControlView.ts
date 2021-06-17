@@ -2,8 +2,13 @@ import { CommonEventDispatcher, DOM } from 'client-js-lib';
 import { CustomEventNames } from './CustomEventNames';
 
 import MainControlModel from './MainControlModel';
+import { DroneHealthState, BatteryLevelWarningState} from './MainControlModel';
 import ViewStateModel from './ViewStateModel';
 import TabModel from './TabModel';
+
+const HEALTH_STATES_CLASSES = ['is-ok', 'is-ng', 'is-warn'];
+
+
 
 export default class MainControlView {
 
@@ -153,8 +158,37 @@ export default class MainControlView {
     }
 
     private droneHealth(): void {
+        this.resetClass(this.$droneConnection, ...HEALTH_STATES_CLASSES);
+        this.resetClass(this.$droneBatteryLevel, ...HEALTH_STATES_CLASSES);
+
         const droneHealth = this.mainControlModel.getDroneHealth();
-        this.$droneConnection.textContent = droneHealth.health;
-        this.$droneBatteryLevel.textContent = droneHealth.batteryLevel;       
+
+        const healthInfo = droneHealth.getHealthInfo();
+
+        if (healthInfo.state === DroneHealthState.Ng) {
+            this.$droneConnection.classList.add('is-ng');
+        }
+        if (healthInfo.state === DroneHealthState.Ok) {
+            this.$droneConnection.classList.add('is-ok');
+        } 
+        this.$droneConnection.textContent = healthInfo.desc;
+
+        const batteryLevelInfo = droneHealth.getBatteryLevelInfo();
+        if (batteryLevelInfo.state === BatteryLevelWarningState.Low) {
+            this.$droneBatteryLevel.classList.add('is-ng');
+        }
+        if (batteryLevelInfo.state === BatteryLevelWarningState.Middle) {
+            this.$droneBatteryLevel.classList.add('is-warn');
+        }
+        if (batteryLevelInfo.state === BatteryLevelWarningState.High) {
+            this.$droneBatteryLevel.classList.add('is-ok');
+        }
+        this.$droneBatteryLevel.textContent = batteryLevelInfo.desc;       
+    }
+
+    private resetClass($elem: HTMLElement, ...classes: string[]) {
+        classes.forEach(cls => {
+            $elem.classList.remove(cls);
+        });
     }
 }

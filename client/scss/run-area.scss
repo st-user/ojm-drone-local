@@ -1,0 +1,73 @@
+.run-area {  
+    &__card-area {
+        width: 85%;
+    }
+
+    &__card-wrapper {
+        float: right;
+        margin: auto;
+        width: 240px;
+    }
+
+    &__drone-status-title {
+        display: inline-block;
+        width: 100px;
+    }
+
+    &__drone-status-value {
+        display: inline-block;
+        font-weight: bold;
+        text-align: center;
+        width: 80px;
+
+        &.is-ok {
+            color: #158e0f;
+        }
+
+        &.is-ng {
+            color: #8f2925;
+        }
+
+        &.is-warn {
+            color: #898e19;
+        }
+    }
+
+    &__start-control-area {
+        margin: auto;
+        margin-bottom: 24px;
+        max-width: 540px;
+    }
+
+    &__start-control-title {
+        font-weight: bold;
+        margin-bottom: 12px;
+    }
+
+    &__start-control-exe {
+        text-align: right;
+    }
+
+    &__start-control {
+        margin: auto;
+        max-width: 540px;
+    }
+
+    &__drone-control {
+        margin: auto;
+        max-width: 540px;
+    }
+
+    &__drone-command {
+        float: left;
+        text-align: center;
+        width: 50%;
+    }
+}
+
+.-run-area {
+    &__drone-ctrl-button {
+        height: 180px;
+        width: 180px;
+    }   
+}

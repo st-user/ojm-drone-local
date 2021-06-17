@@ -24,6 +24,9 @@ export default function main(): void {
         mainControlView.setUpEvent();
 
         await setupModel.init();
+        if (setupModel.getSavedAccessTokenDesc()) {
+            tabModel.run();
+        }
         await mainControlModel.init();
     });
 }

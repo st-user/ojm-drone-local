@@ -3,16 +3,18 @@
         <meta charset="UTF-8">
         <script src="./js/style.js?q=!_____APP_VERSION_____!"></script>
     </head>
-    <body>
-     
-        <div class="p-heading-icon">
-            <div class="p-heading-icon__header">
-                <img class="p-heading-icon__img" src="logo.png?q=!_____APP_VERSION_____!" alt="">
-                <h3 class="p-heading-icon__title">OJM-Drone</h3>
-            </div>
-        </div>
+    <body class="global">
 
-        <div>
+        <header class="header">
+            <div class="p-heading-icon">
+                <div class="p-heading-icon__header">
+                    <img class="p-heading-icon__img" src="logo.png?q=!_____APP_VERSION_____!" alt="">
+                    <h3 class="p-heading-icon__title">OJM-Drone</h3>
+                </div>
+            </div>
+        </header>
+
+        <div class="contents">
 
             <div class="p-tabs">
                 <ul class="p-tabs__list">
@@ -25,19 +27,24 @@
                 </ul>
             </div>
 
-            <div>
 
-                <div id="setupArea">
+            <div class="tab-contents">
 
-                    <div>
-                        <div>Access Token</div>
+                <div id="setupArea" class="setup-area">
+
+                    <div class="setup-area__item">
+                        <div class="setup-area__title">Access Token</div>
                         <div>
                             <input type="password" name="accessToken" id="accessToken" placeholder="Please input your access token."/>
                         </div>
-                        <div>
-                            <span>Saved access token:</span><span id="savedAccessTokenDesc"></span>
+                        <div class="setup-area__saved-access-token">
+                            <span class="setup-area__saved-access-token-title">
+                                Saved access token:
+                            </span>
+                            <span id="savedAccessTokenDesc" class="setup-area__saved-access-token-value">
+                            </span>
                         </div>
-                        <div>
+                        <div class="setup-area__confirmation">
                             <button type="button" id="updateAccessToken" class="p-button--neutral">update</button>
                             <button type="button" id="deleteAccessToken" class="p-button--neutral">delete</button>
                         </div>
@@ -45,47 +52,44 @@
 
                 </div>
 
-                <div id="runArea">
+                <div id="runArea" class="run-area">
 
-                    <div>
-                        <div class="p-card">
-                            <div class="p-card__title">Drone's status</div>
-                            <div class="p-card__content">
-                                <div>
-                                    <span>connection:</span><span id="droneConnection"></span>
-                                </div>
-                                <div>
-                                    <span>battery:</span><span id="droneBatteryLevel"></span>
+                    <div class="run-area__card-area clearfixContainer">
+                        <div class="run-area__card-wrapper">
+                            <div class="p-card">
+                                <h3 class="p-card__title">Drone's status</h3>
+                                <div class="p-card__content">
+                                    <div>
+                                        <span class="run-area__drone-status-title">connection:</span>
+                                        <span id="droneConnection" class="run-area__drone-status-value"></span>
+                                    </div>
+                                    <div>
+                                        <span class="run-area__drone-status-title">battery:</span>
+                                        <span id="droneBatteryLevel" class="run-area__drone-status-value"></span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="start-area">
-                        <div class="start-control-wrapper">
-                            <ul class="start-control">
-                                <li>
-                                    <input type="text" name="startKey" id="startKey" class="start-key" value="" placeholder="Please input 'Start Code' or generate."/>
-                                </li>
-                                <li>
-                                    <button type="button" id="start" class="p-button--neutral">START</button>
-                                </li>
-                                <li>
-                                    <button type="button" id="generateKey" class="p-button--neutral">Generate</button>
-                                </li>
-                            </ul>
+                    <div class="run-area__start-control-area">
+                        <div class="run-area__start-control-title">Start Code</div>
+                        <div>
+                            <input type="text" name="startKey" id="startKey" class="start-key" value="" placeholder="Please input 'Start Code' or generate."/>
+                        </div>
+                        <div class="run-area__start-control-exe">
+                            <button type="button" id="start" class="p-button--neutral">START</button>
+                            <button type="button" id="generateKey" class="p-button--neutral">Generate</button>
                         </div>
                     </div>
-            
-                    <div id="messageArea" class="message-area"></div>
-            
-                    <div class="control-area">
-                        <ul class="commands">
-                            <li>
-                                <button type="button" id="takeoff" class="p-button--neutral">Takeoff</button>
+                       
+                    <div class="run-area__drone-control-area">
+                        <ul class="run-area__drone-control">
+                            <li class="run-area__drone-command">
+                                <button type="button" id="takeoff" class="p-button--neutral -run-area__drone-ctrl-button">Takeoff</button>
                             </li>
-                            <li>
-                                <button type="button" id="land" class="p-button--neutral">Land</button>
+                            <li class="run-area__drone-command">
+                                <button type="button" id="land" class="p-button--neutral -run-area__drone-ctrl-button">Land</button>
                             </li>
                         </ul>
                     </div>
@@ -93,10 +97,8 @@
                 </div>
 
             </div>
+
         </div>
-
-
-
 
 
         <script src="./js/main.js?q=!_____APP_VERSION_____!"></script>
