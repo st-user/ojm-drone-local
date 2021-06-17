@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -64,7 +65,7 @@ func loadEnvFrom(path string) Environment {
 }
 
 func loadEnv() Environment {
-	path := ".env"
+	path := filepath.Join(BaseDir(), ".env")
 	_path := os.Getenv("GO_ENV_FILE_PATH")
 
 	if len(_path) > 0 {

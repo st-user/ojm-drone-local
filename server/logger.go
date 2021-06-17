@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -20,7 +21,7 @@ type Logger struct {
 	dump  *log.Logger
 }
 
-func NewLogger(levelStr string, dumpFilePath string) Logger {
+func NewLogger(levelStr string) Logger {
 	levelInt := 1
 	levelStr = strings.ToUpper(levelStr)
 	switch levelStr {
@@ -34,6 +35,11 @@ func NewLogger(levelStr string, dumpFilePath string) Logger {
 		log.Fatalf("Invalid log level: %v", levelStr)
 	}
 
+	dumpFilePath := filepath.Join(BaseDir(), "dump", "server.log")
+	_dumpFilePath := os.Getenv("DUMP_LOG_FILE_PATH")
+	if len(_dumpFilePath) > 0 {
+		dumpFilePath = _dumpFilePath
+	}
 	fileToDump, err := os.OpenFile(dumpFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0755)
 	if err != nil {
 		log.Fatal(err)

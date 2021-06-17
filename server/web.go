@@ -33,7 +33,7 @@ type Statics struct {
 }
 
 func NewStatics() Statics {
-	dir := "static"
+	dir := filepath.Join(BaseDir(), "static")
 	_dir := os.Getenv("GO_STATIC_FILE_DIR")
 
 	if len(_dir) > 0 {

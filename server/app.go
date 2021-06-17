@@ -7,6 +7,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"strings"
 	"time"
 
@@ -15,7 +17,7 @@ import (
 )
 
 var ENV = loadEnv()
-var Log = NewLogger(ENV.Get("LOG_LEVEL"), ENV.Get("DUMP_LOG_FILE_PATH"))
+var Log = NewLogger(ENV.Get("LOG_LEVEL"))
 
 var routineCoordinator = RoutineCoordinator{}
 var applicationStates = NewApplicationStates()
@@ -75,6 +77,7 @@ func updateAccessToken(w http.ResponseWriter, r *http.Request) (*map[string]inte
 	if err != nil || res.StatusCode != 200 {
 		return nil, fmt.Errorf("encounters an error during handling response. %v %v", err, res.Status)
 	}
+	defer res.Body.Close()
 
 	_, desc, err := keyChainManager.UpdateToken(token)
 
@@ -465,9 +468,19 @@ func routes() {
 		statics.HandleStatic(w, r)
 	})
 
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	log.Fatal(http.ListenAndServe("localhost:"+port, nil))
 }
 
 func main() {
-	routes()
+	go routes()
+	go OpenBrowser("http://localhost:"+ENV.Get("PORT"), 3*time.Second)
+
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt)
+
+	<-signalChan
+	fmt.Println("Are you sure you want to stop the application? If so, press 'ctrl+c' twice.")
+	<-signalChan
+	<-signalChan
+	os.Exit(2)
 }
