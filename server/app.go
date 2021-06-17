@@ -15,16 +15,27 @@ import (
 )
 
 var ENV = loadEnv()
-var routineCoordinator = RoutineCoordinator{}
 var Log = NewLogger(ENV.Get("LOG_LEVEL"), ENV.Get("DUMP_LOG_FILE_PATH"))
+
+var routineCoordinator = RoutineCoordinator{}
 var applicationStates = NewApplicationStates()
 
 func toEndpointUrlWithTrailingSlash() string {
 	endpoint := ENV.Get("SIGNALING_ENDPOINT")
-	if "/" != string(endpoint[len(endpoint)-1]) {
+	if string(endpoint[len(endpoint)-1]) != "/" {
 		endpoint = endpoint + "/"
 	}
 	return endpoint
+}
+
+func createAuthorizationRequest(path string, token string) (*http.Request, error) {
+
+	url := toEndpointUrlWithTrailingSlash() + path
+
+	req, _ := http.NewRequest("GET", url, nil)
+	req.Header.Set("Authorization", "bearer "+token)
+
+	return req, nil
 }
 
 func checkAccessTokenSaved(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, error) {
@@ -51,6 +62,19 @@ func updateAccessToken(w http.ResponseWriter, r *http.Request) (*map[string]inte
 		return nil, err
 	}
 	token := bodyJson["accessToken"]
+
+	req, err := createAuthorizationRequest("validateAccessToken", token)
+
+	if err != nil {
+		return nil, err
+	}
+
+	client := &http.Client{}
+	res, err := client.Do(req)
+
+	if err != nil || res.StatusCode != 200 {
+		return nil, fmt.Errorf("encounters an error during handling response. %v %v", err, res.Status)
+	}
 
 	keyChainManager := NewKeyChainManager()
 	_, desc, err := keyChainManager.UpdateToken(token)
@@ -85,20 +109,22 @@ func checkDroneHealth(w http.ResponseWriter, r *http.Request) (*map[string]inter
 
 func generateKey(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, error) {
 
-	client := &http.Client{}
-	url := toEndpointUrlWithTrailingSlash() + "generateKey"
-
 	KeyChainManager := NewKeyChainManager()
-	secret, err := KeyChainManager.GetToken()
+	token, err := KeyChainManager.GetToken()
 
 	if err != nil {
 		return nil, err
 	}
 
-	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Set("Authorization", "bearer "+secret)
+	req, err := createAuthorizationRequest("generateKey", token)
 
+	if err != nil {
+		return nil, err
+	}
+
+	client := &http.Client{}
 	res, err := client.Do(req)
+
 	if err != nil || res.StatusCode != 200 {
 		return nil, fmt.Errorf("encounters an error during handling response. %v %v", err, res.Status)
 	}

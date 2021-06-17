@@ -32,9 +32,17 @@ export default class SetupModel {
             body: JSON.stringify({
                 'accessToken': this.accessToken
             })
-        }).then(res => res.json()).then(ret => {
+        }).then(res => {
+            if (res.status !== 200) {
+                throw new Error('Invalid response');
+            }
+            return res.json();
+        }).then(ret => {
             this.accessToken = '';
             this.savedAccessTokenDesc = ret.accessTokenDesc;
+            CommonEventDispatcher.dispatch(CustomEventNames.OJM_DRONE_LOCAL__ACCESS_TOKEN_INPUT_STATE_CHANGED);
+        }).catch(() => {
+            alert('Failed to update access token. The input token may be invalid.');
             CommonEventDispatcher.dispatch(CustomEventNames.OJM_DRONE_LOCAL__ACCESS_TOKEN_INPUT_STATE_CHANGED);
         });
     }
