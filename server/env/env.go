@@ -1,4 +1,4 @@
-package main
+package env
 
 import (
 	"io/ioutil"
@@ -8,10 +8,23 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/st-user/ojm-drone-local/appos"
 )
 
 type Environment struct {
 	data map[string]string
+}
+
+func LoadEnv() Environment {
+	path := filepath.Join(appos.BaseDir(), ".env")
+	_path := os.Getenv("GO_ENV_FILE_PATH")
+
+	if len(_path) > 0 {
+		path = _path
+	}
+
+	return loadEnvFrom(path)
 }
 
 func (env *Environment) Get(key string) string {
@@ -62,15 +75,4 @@ func loadEnvFrom(path string) Environment {
 	return Environment{
 		data: ret,
 	}
-}
-
-func loadEnv() Environment {
-	path := filepath.Join(BaseDir(), ".env")
-	_path := os.Getenv("GO_ENV_FILE_PATH")
-
-	if len(_path) > 0 {
-		path = _path
-	}
-
-	return loadEnvFrom(path)
 }

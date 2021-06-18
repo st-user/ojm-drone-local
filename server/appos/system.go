@@ -1,4 +1,4 @@
-package main
+package appos
 
 import (
 	"os"

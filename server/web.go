@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/gorilla/websocket"
+	"github.com/st-user/ojm-drone-local/appos"
 )
 
 var mimeTypes = map[string]string{
@@ -33,7 +34,7 @@ type Statics struct {
 }
 
 func NewStatics() Statics {
-	dir := filepath.Join(BaseDir(), "static")
+	dir := filepath.Join(appos.BaseDir(), "static")
 	_dir := os.Getenv("GO_STATIC_FILE_DIR")
 
 	if len(_dir) > 0 {

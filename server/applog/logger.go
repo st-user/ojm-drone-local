@@ -1,10 +1,12 @@
-package main
+package applog
 
 import (
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/st-user/ojm-drone-local/appos"
 )
 
 const (
@@ -35,7 +37,7 @@ func NewLogger(levelStr string) Logger {
 		log.Fatalf("Invalid log level: %v", levelStr)
 	}
 
-	dumpFilePath := filepath.Join(BaseDir(), "dump", "server.log")
+	dumpFilePath := filepath.Join(appos.BaseDir(), "dump", "server.log")
 	_dumpFilePath := os.Getenv("DUMP_LOG_FILE_PATH")
 	if len(_dumpFilePath) > 0 {
 		dumpFilePath = _dumpFilePath

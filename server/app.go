@@ -14,14 +14,17 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/pion/webrtc/v3"
+	"github.com/st-user/ojm-drone-local/applog"
+	"github.com/st-user/ojm-drone-local/appos"
+	"github.com/st-user/ojm-drone-local/env"
 )
 
-var ENV = loadEnv()
-var Log = NewLogger(ENV.Get("LOG_LEVEL"))
+var ENV = env.LoadEnv()
+var Log = applog.NewLogger(ENV.Get("LOG_LEVEL"))
 
 var routineCoordinator = RoutineCoordinator{}
 var applicationStates = NewApplicationStates()
-var keyChainManager KeyChainManager
+var keyChainManager appos.KeyChainManager
 
 func toEndpointUrlWithTrailingSlash() string {
 	endpoint := ENV.Get("SIGNALING_ENDPOINT")
@@ -434,7 +437,7 @@ func routes() {
 	routineCoordinator.InitRoutineCoordinator(true)
 	routineCoordinator.IsStopped = true
 
-	km, err := NewKeyChainManager()
+	km, err := appos.NewKeyChainManager()
 	if err != nil {
 		panic(err)
 	}
@@ -473,7 +476,7 @@ func routes() {
 
 func main() {
 	go routes()
-	go OpenBrowser("http://localhost:"+ENV.Get("PORT"), 3*time.Second)
+	go appos.OpenBrowser("http://localhost:"+ENV.Get("PORT"), 3*time.Second)
 
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt)
