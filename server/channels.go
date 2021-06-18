@@ -10,7 +10,6 @@ type RoutineCoordinator struct {
 	DroneCommandChannel           chan DroneCommand
 	DroneFrameChannel             chan []byte
 	DataChannelMessageChannel     chan string
-	DroneStateChannel             chan string
 	RTCPPacketChannel             chan rtcp.Packet
 	StopSignalChannel             chan struct{}
 	IsStopped                     bool
@@ -35,7 +34,6 @@ func (r *RoutineCoordinator) InitRoutineCoordinator(force bool) {
 		r.DroneCommandChannel = make(chan DroneCommand)
 		r.DroneFrameChannel = make(chan []byte)
 		r.DataChannelMessageChannel = make(chan string)
-		r.DroneStateChannel = make(chan string)
 		r.RTCPPacketChannel = make(chan rtcp.Packet)
 		r.StopSignalChannel = make(chan struct{})
 	}
@@ -47,7 +45,6 @@ func (r *RoutineCoordinator) StopApp() {
 	close(r.DroneCommandChannel)
 	close(r.DroneFrameChannel)
 	close(r.DataChannelMessageChannel)
-	close(r.DroneStateChannel)
 	close(r.RTCPPacketChannel)
 	close(r.StopSignalChannel)
 }
@@ -79,12 +76,6 @@ func (r *RoutineCoordinator) SendDroneFrameChannel(data *[]byte) {
 func (r *RoutineCoordinator) SendDataChannelMessageChannel(data string) {
 	if !r.IsStopped {
 		r.DataChannelMessageChannel <- data
-	}
-}
-
-func (r *RoutineCoordinator) SendDroneStateChannel(data string) {
-	if !r.IsStopped {
-		r.DroneStateChannel <- data
 	}
 }
 

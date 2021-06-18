@@ -41,7 +41,7 @@ func createAuthorizationRequest(path string, token string) (*http.Request, error
 	return req, nil
 }
 
-func checkAccessTokenSaved(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, error) {
+func checkApplicationStates(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, error) {
 
 	_, desc, err := keyChainManager.GetTokenAndDesc()
 
@@ -50,7 +50,9 @@ func checkAccessTokenSaved(w http.ResponseWriter, r *http.Request) (*map[string]
 	}
 
 	return &map[string]interface{}{
-		"accessTokenDesc": desc,
+		"accessTokenDesc":  desc,
+		"applicationState": applicationStates.GetState(),
+		"startKey":         applicationStates.GetStartKey(),
 	}, nil
 }
 
@@ -101,13 +103,6 @@ func deleteAccessToken(w http.ResponseWriter, r *http.Request) (*map[string]inte
 	return &map[string]interface{}{}, nil
 }
 
-func checkDroneHealth(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, error) {
-	return &map[string]interface{}{
-		"health":       applicationStates.DroneStates.DroneHealth(),
-		"batteryLevel": applicationStates.DroneStates.BatteryLevel(),
-	}, nil
-}
-
 func generateKey(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, error) {
 
 	token, err := keyChainManager.GetToken()
@@ -126,7 +121,7 @@ func generateKey(w http.ResponseWriter, r *http.Request) (*map[string]interface{
 	res, err := client.Do(req)
 
 	if err != nil || res.StatusCode != 200 {
-		return nil, fmt.Errorf("encounters an error during handling response. %v %v", err, res.Status)
+		return nil, fmt.Errorf("encounters an error during handling response. %v", err)
 	}
 
 	defer res.Body.Close()
@@ -148,10 +143,13 @@ func generateKey(w http.ResponseWriter, r *http.Request) (*map[string]interface{
 
 func startApp(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, error) {
 
-	routineCoordinator.WaitUntilReleasingSocket()
-	applog.Info("End waiting for the waitgroup to be done.")
+	if applicationStates.IsStarted() {
+		applog.Info("Application has already been started.")
+		responseBody := map[string]interface{}{}
+		return &responseBody, nil
+	}
+	applicationStates.Start()
 
-	routineCoordinator.InitRoutineCoordinator(false)
 	decoder := json.NewDecoder(r.Body)
 	bodyJson := make(map[string]string)
 	err := decoder.Decode(&bodyJson)
@@ -160,22 +158,55 @@ func startApp(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, 
 		return nil, err
 	}
 
-	startKeyJson := map[string]string{
-		"startKey": bodyJson["startKey"],
-	}
-	startKeyJsonBytes, err := json.Marshal(startKeyJson)
-	if err != nil {
-		return nil, err
-	}
+	startKey := bodyJson["startKey"]
+	err = startAppFrom(startKey)
 
-	rtcHandler := NewRTCHandler()
-	err = negotiateSignalingConnection(startKeyJsonBytes, rtcHandler)
 	if err != nil {
 		return nil, err
 	}
 
 	responseBody := map[string]interface{}{}
 	return &responseBody, nil
+}
+
+func startAppFrom(startKey string) error {
+	routineCoordinator.WaitUntilReleasingSocket()
+	applog.Info("End waiting for the waitgroup to be done.")
+
+	routineCoordinator.InitRoutineCoordinator(false)
+
+	startKeyJson := map[string]string{
+		"startKey": startKey,
+	}
+	startKeyJsonBytes, err := json.Marshal(startKeyJson)
+	if err != nil {
+		return err
+	}
+
+	rtcHandler := NewRTCHandler()
+	err = negotiateSignalingConnection(startKeyJsonBytes, rtcHandler)
+	if err != nil {
+		return err
+	}
+
+	applicationStates.SetStartKey(startKey)
+
+	return nil
+}
+
+func restartApp() {
+	routineCoordinator.StopApp()
+
+	exsitingStartKey := applicationStates.GetStartKey()
+	if exsitingStartKey == "" {
+		return
+	}
+
+	err := startAppFrom(exsitingStartKey)
+
+	if err != nil {
+		applog.Warn("Failed to restart signaling connection. %v", err.Error())
+	}
 }
 
 func negotiateSignalingConnection(startKeyJsonBytes []byte, rtcHandler *RTCHandler) error {
@@ -220,7 +251,7 @@ func restartSignalingConnection(startKeyJsonBytes []byte, retryCount int, rtcHan
 		maxRetry := env.GetInt("SIGNALING_ENDPOINT_MAX_RETRY")
 		if maxRetry < retryCount {
 			applog.Info("Fails to connect to the signaling channel. Retry count exceeds max.")
-			routineCoordinator.StopApp()
+			restartApp()
 			return
 		}
 
@@ -309,7 +340,7 @@ func startSignalingConnection(connection *websocket.Conn, rtcHandler *RTCHandler
 				if state == PEER_STATE_SAME {
 					if peerType.IsPrimary {
 						applog.Info("Primary peer is requesting new connection. Restart the application.")
-						routineCoordinator.StopApp()
+						restartApp()
 						write()
 						return
 					} else {
@@ -325,7 +356,7 @@ func startSignalingConnection(connection *websocket.Conn, rtcHandler *RTCHandler
 				peerType := rtcMessageData.ToPeerType()
 				if rtcHandler.IsPrimary(peerType.PeerConnectionId) {
 					applog.Info("Primary peer has been closed. Restart the application.")
-					routineCoordinator.StopApp()
+					restartApp()
 					return
 
 				} else {
@@ -360,7 +391,7 @@ func startSignalingConnection(connection *websocket.Conn, rtcHandler *RTCHandler
 				if rtcHandler.IsPrimary(peerConnectionId) {
 					drone := NewDrone()
 					drone.Start(&routineCoordinator, applicationStates)
-					localDescription, err = rtcHandler.StartPrimaryConnection(sdp, &routineCoordinator)
+					localDescription, err = rtcHandler.StartPrimaryConnection(sdp, &routineCoordinator, applicationStates)
 				} else {
 					localDescription, err = rtcHandler.StartAudienceConnection(peerConnectionId, sdp, &routineCoordinator)
 				}
@@ -386,22 +417,10 @@ func startSignalingConnection(connection *websocket.Conn, rtcHandler *RTCHandler
 	}
 }
 
-func healthCheck(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, error) {
-	responseBody := map[string]interface{}{}
-	return &responseBody, nil
-}
+func state(w http.ResponseWriter, r *http.Request) {
 
-func state(server *OutboundRelayMessageServer) func(w http.ResponseWriter, r *http.Request) {
-
-	return func(w http.ResponseWriter, r *http.Request) {
-		server.HandleMessage(w, r, &routineCoordinator, func(text string) map[string]interface{} {
-			result := map[string]interface{}{
-				"messageType": "stateChange",
-				"state":       text,
-			}
-			return result
-		})
-	}
+	server := NewApplicationStatesServer()
+	server.Start(w, r, applicationStates)
 }
 
 func takeoff(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, error) {
@@ -441,39 +460,28 @@ func routes() {
 	keyChainManager = km
 
 	statics := NewStatics()
-	server := NewOutboundRelayMessageServer()
 
-	HandleFuncJSON("/checkAccessTokenSaved", checkAccessTokenSaved)
+	HandleFuncJSON("/checkApplicationStates", checkApplicationStates)
 	HandleFuncJSON("/updateAccessToken", updateAccessToken)
 	HandleFuncJSON("/deleteAccessToken", deleteAccessToken)
-	HandleFuncJSON("/checkDroneHealth", checkDroneHealth)
 	HandleFuncJSON("/generateKey", generateKey)
 	HandleFuncJSON("/startApp", startApp)
-	HandleFuncJSON("/healthCheck", healthCheck)
 	HandleFuncJSON("/takeoff", takeoff)
 	HandleFuncJSON("/land", land)
 
-	http.HandleFunc("/state", state(&server))
-
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-
-		filename := r.URL.Path[len("/"):]
-
-		if filename == "index.html" || filename == "" {
-			if !routineCoordinator.IsStopped {
-				routineCoordinator.StopApp()
-			}
-		}
-
-		statics.HandleStatic(w, r)
-	})
+	http.HandleFunc("/state", state)
+	http.HandleFunc("/", statics.HandleStatic)
 
 	log.Fatal(http.ListenAndServe("localhost:"+port, nil))
 }
 
 func main() {
 	go routes()
-	go appos.OpenBrowser("http://localhost:"+env.Get("PORT"), 3*time.Second)
+	go func() {
+		if env.GetBool("OPEN_BROWSER_ON_START_UP") {
+			appos.OpenBrowser("http://localhost:"+env.Get("PORT"), 3*time.Second)
+		}
+	}()
 
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt)

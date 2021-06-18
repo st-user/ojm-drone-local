@@ -12,12 +12,6 @@ export default class SetupModel {
         this.savedAccessTokenDesc = '';
     }
 
-    async init(): Promise<void> {
-        const accessTokenDesc: string = await fetch('/checkAccessTokenSaved').then(res => res.json()).then(ret => ret.accessTokenDesc);
-        this.savedAccessTokenDesc = accessTokenDesc;
-        CommonEventDispatcher.dispatch(CustomEventNames.OJM_DRONE_LOCAL__ACCESS_TOKEN_INPUT_STATE_CHANGED);
-    }
-
     async update(): Promise<void> {
         if (this.getSavedAccessTokenDesc()) {
             if (!confirm('Are you sure you want to update the existing access token?')) {
@@ -61,6 +55,11 @@ export default class SetupModel {
 
     setAccessToken(accessToken: string): void {
         this.accessToken = accessToken;
+        CommonEventDispatcher.dispatch(CustomEventNames.OJM_DRONE_LOCAL__ACCESS_TOKEN_INPUT_STATE_CHANGED);
+    }
+
+    setSavedAccessTokenDesc(accessTokenDesc: string): void {
+        this.savedAccessTokenDesc = accessTokenDesc;
         CommonEventDispatcher.dispatch(CustomEventNames.OJM_DRONE_LOCAL__ACCESS_TOKEN_INPUT_STATE_CHANGED);
     }
 

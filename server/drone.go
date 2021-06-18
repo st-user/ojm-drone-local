@@ -28,6 +28,7 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator, applicationSta
 
 	lastTimestampVideoReceived := time.Now().Add(-1 * time.Hour)
 	lastTimestampFightDataReceived := time.Now().Add(-1 * time.Hour)
+	latestBatteryLevel := 0
 
 	startRobot := func() {
 
@@ -50,8 +51,8 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator, applicationSta
 			if 3 < time.Since(lastLoggedTime).Seconds() {
 				fd := data.(*tello.FlightData)
 
+				latestBatteryLevel = int(fd.BatteryPercentage)
 				applog.Info("Battery level %v%%", fd.BatteryPercentage)
-				applicationStates.DroneStates.SetBatteryLevel(fd.BatteryPercentage)
 
 				lastLoggedTime = time.Now()
 			}
@@ -174,10 +175,13 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator, applicationSta
 		for {
 			select {
 			case <-routineCoordinator.StopSignalChannel:
+				applog.Info("Stop drone health check loop.")
 
-				applicationStates.DroneStates.SetDroneHealth(DRONE_HEALTH_UNKNOWN)
+				applicationStates.SetDroneHealths(DroneHealths{
+					DroneHealth:  DRONE_HEALTH_UNKNOWN,
+					BatteryLevel: latestBatteryLevel,
+				})
 
-				applog.Info("Stop drone helth check loop.")
 				robot.Stop()
 				return
 			default:
@@ -194,11 +198,19 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator, applicationSta
 				}
 
 				if ok {
-					applicationStates.DroneStates.SetDroneHealth(DRONE_HEALTH_OK)
+
+					applicationStates.SetDroneHealths(DroneHealths{
+						DroneHealth:  DRONE_HEALTH_OK,
+						BatteryLevel: latestBatteryLevel,
+					})
 
 					applog.Debug("Drone is successfully receiving data.")
 				} else {
-					applicationStates.DroneStates.SetDroneHealth(DRONE_HEALTH_NG)
+
+					applicationStates.SetDroneHealths(DroneHealths{
+						DroneHealth:  DRONE_HEALTH_NG,
+						BatteryLevel: latestBatteryLevel,
+					})
 
 					robot.Stop()
 					applog.Info("Restarts robot.")
@@ -211,8 +223,8 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator, applicationSta
 		}
 	}
 
-	go checkerFunc()
 	startRobot()
+	go checkerFunc()
 
 	applog.Info("Drone starts.")
 }

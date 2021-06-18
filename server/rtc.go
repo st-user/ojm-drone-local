@@ -183,7 +183,8 @@ func (handler *RTCHandler) IsPrimary(peerConnectionId string) bool {
 
 func (handler *RTCHandler) StartPrimaryConnection(
 	remoteSdp *webrtc.SessionDescription,
-	routineCoordinator *RoutineCoordinator) (*webrtc.SessionDescription, error) {
+	routineCoordinator *RoutineCoordinator,
+	applicationStates *ApplicationStates) (*webrtc.SessionDescription, error) {
 
 	handler.mutex.Lock()
 	defer handler.mutex.Unlock()
@@ -236,13 +237,13 @@ func (handler *RTCHandler) StartPrimaryConnection(
 		connectionStateDesc := connectionState.String()
 		switch connectionStateDesc {
 		case "connected":
-			routineCoordinator.SendDroneStateChannel("land")
+			applicationStates.SetDroneState(DRONE_STATE_LAND)
 		case "disconnected":
 			fallthrough
 		case "failed":
 			fallthrough
 		case "closed":
-			routineCoordinator.SendDroneStateChannel("ready")
+			applicationStates.SetDroneState(DRONE_STATE_READY)
 		}
 
 	})

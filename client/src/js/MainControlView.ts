@@ -2,7 +2,8 @@ import { CommonEventDispatcher, DOM } from 'client-js-lib';
 import { CustomEventNames } from './CustomEventNames';
 
 import MainControlModel from './MainControlModel';
-import { DroneHealthState, BatteryLevelWarningState} from './MainControlModel';
+import ApplicationStatesModel from './ApplicationStatesModel';
+import { DroneHealthState, BatteryLevelWarningState} from './ApplicationStatesModel';
 import ViewStateModel from './ViewStateModel';
 import TabModel from './TabModel';
 
@@ -13,6 +14,7 @@ const HEALTH_STATES_CLASSES = ['is-ok', 'is-ng', 'is-warn'];
 export default class MainControlView {
 
     private readonly viewStateModel: ViewStateModel;
+    private readonly applicationStatesModel: ApplicationStatesModel;
     private readonly tabModel: TabModel;
     private readonly mainControlModel: MainControlModel;
 
@@ -28,10 +30,11 @@ export default class MainControlView {
     private readonly $takeoff: HTMLButtonElement;
     private readonly $land: HTMLButtonElement;
 
-    constructor(viewStateModel: ViewStateModel, tabModel: TabModel, mainControlModel: MainControlModel) {
+    constructor(viewStateModel: ViewStateModel, applicationStatesModel: ApplicationStatesModel, tabModel: TabModel, mainControlModel: MainControlModel) {
 
-        this.tabModel = tabModel;
         this.viewStateModel = viewStateModel;
+        this.applicationStatesModel = applicationStatesModel;
+        this.tabModel = tabModel;
         this.mainControlModel = mainControlModel;
 
         this.$runArea = DOM.query('#runArea')!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
@@ -56,9 +59,12 @@ export default class MainControlView {
                 return;
             }
     
-            await this.mainControlModel.generateKey(startKey => {
-                this.$startKey.value = startKey;
-            });
+            await this.mainControlModel.generateKey();
+        });
+
+        DOM.keyup(this.$startKey, event => {
+            event.preventDefault();
+            this.mainControlModel.setStartKeyWithEvent(this.$startKey.value);
         });
 
         DOM.click(this.$start, (event: Event) => {
@@ -67,8 +73,8 @@ export default class MainControlView {
             if (!this.viewStateModel.isInit()) {
                 return;
             }
-
-            this.mainControlModel.startApp(this.$startKey.value);
+            this.mainControlModel.setStartKeyNoEvent(this.$startKey.value);
+            this.mainControlModel.startApp();
         });
 
         DOM.click(this.$takeoff, async () => {
@@ -91,6 +97,10 @@ export default class MainControlView {
             this.render();
         });
 
+        CommonEventDispatcher.on(CustomEventNames.OJM_DRONE_LOCAL__START_KEY_INPUT_STATE_CHANGED, () => {
+            this.render();
+        });
+
 
         CommonEventDispatcher.on(CustomEventNames.OJM_DRONE_LOCAL__TAB_CLICKED, () => {
             this.display();
@@ -100,12 +110,12 @@ export default class MainControlView {
             this.droneHealth();
         });
 
-        this.render();
         this.display();
     }
 
     private render(): void {
 
+        this.$startKey.value = this.mainControlModel.getStartKey();
 
         if (this.viewStateModel.isInit()) {
             this.$startKey.disabled = false;
@@ -143,7 +153,7 @@ export default class MainControlView {
     }
 
     private enableStartButtons(): void {
-        this.$start.disabled = false;
+        this.$start.disabled = !this.mainControlModel.getStartKey();
         this.$generateKey.disabled = false;
     }
 
@@ -161,7 +171,7 @@ export default class MainControlView {
         this.resetClass(this.$droneConnection, ...HEALTH_STATES_CLASSES);
         this.resetClass(this.$droneBatteryLevel, ...HEALTH_STATES_CLASSES);
 
-        const droneHealth = this.mainControlModel.getDroneHealth();
+        const droneHealth = this.applicationStatesModel.getDroneHealth();
 
         const healthInfo = droneHealth.getHealthInfo();
 
