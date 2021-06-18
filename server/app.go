@@ -141,7 +141,23 @@ func generateKey(w http.ResponseWriter, r *http.Request) (*map[string]interface{
 	return &responseBody, nil
 }
 
+func stopApp(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, error) {
+	applicationStates.StartStopMux.Lock()
+	defer applicationStates.StartStopMux.Unlock()
+
+	applicationStates.SetState(APPLICATION_STATE_INIT)
+	applicationStates.SetStartKey("")
+	if !routineCoordinator.IsStopped {
+		routineCoordinator.StopApp()
+	}
+
+	responseBody := map[string]interface{}{}
+	return &responseBody, nil
+}
+
 func startApp(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, error) {
+	applicationStates.StartStopMux.Lock()
+	defer applicationStates.StartStopMux.Unlock()
 
 	if applicationStates.IsStarted() {
 		applog.Info("Application has already been started.")
@@ -195,12 +211,15 @@ func startAppFrom(startKey string) error {
 }
 
 func restartApp() {
-	routineCoordinator.StopApp()
+	applicationStates.StartStopMux.Lock()
+	defer applicationStates.StartStopMux.Unlock()
 
 	exsitingStartKey := applicationStates.GetStartKey()
 	if exsitingStartKey == "" {
 		return
 	}
+
+	routineCoordinator.StopApp()
 
 	err := startAppFrom(exsitingStartKey)
 
@@ -445,6 +464,19 @@ func land(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, erro
 	return &responseBody, nil
 }
 
+func terminate(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, error) {
+	stopApp(w, r)
+
+	go func() {
+		applog.Warn("Application terminates...")
+		time.Sleep(5 * time.Second)
+		os.Exit(2)
+	}()
+
+	responseBody := map[string]interface{}{}
+	return &responseBody, nil
+}
+
 func routes() {
 
 	port := env.Get("PORT")
@@ -465,9 +497,11 @@ func routes() {
 	HandleFuncJSON("/updateAccessToken", updateAccessToken)
 	HandleFuncJSON("/deleteAccessToken", deleteAccessToken)
 	HandleFuncJSON("/generateKey", generateKey)
+	HandleFuncJSON("/stopApp", stopApp)
 	HandleFuncJSON("/startApp", startApp)
 	HandleFuncJSON("/takeoff", takeoff)
 	HandleFuncJSON("/land", land)
+	HandleFuncJSON("/terminate", terminate)
 
 	http.HandleFunc("/state", state)
 	http.HandleFunc("/", statics.HandleStatic)

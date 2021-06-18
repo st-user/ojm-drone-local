@@ -1,6 +1,9 @@
 package main
 
-import "sync/atomic"
+import (
+	"sync"
+	"sync/atomic"
+)
 
 const (
 	APPLICATION_STATE_INIT   = 0
@@ -14,7 +17,7 @@ const (
 )
 
 const (
-	DRONE_STATE_UNKNOWN = 0
+	DRONE_STATE_INIT    = 0
 	DRONE_STATE_READY   = 1
 	DRONE_STATE_LAND    = 2
 	DRONE_STATE_TAKEOFF = 3
@@ -25,6 +28,7 @@ type ApplicationStates struct {
 	currentStartKey  atomic.Value
 	droneHealths     atomic.Value
 	droneState       atomic.Value
+	StartStopMux     sync.Mutex
 }
 
 type DroneHealths struct {
@@ -42,7 +46,7 @@ func NewApplicationStates() *ApplicationStates {
 	a.SetDroneHealths(DroneHealths{
 		DroneHealth: DRONE_HEALTH_UNKNOWN,
 	})
-	a.SetDroneState(DRONE_STATE_UNKNOWN)
+	a.SetDroneState(DRONE_STATE_INIT)
 
 	return a
 }

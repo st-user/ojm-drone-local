@@ -162,9 +162,10 @@ func (ws *ApplicationStatesServer) Start(
 				return
 			default:
 				data := map[string]interface{}{
-					"messageType": "droneInfo",
-					"state":       applicationStates.GetDroneState(),
-					"healths": map[string]int{
+					"messageType": "appInfo",
+					"state":       applicationStates.GetState(),
+					"droneState":  applicationStates.GetDroneState(),
+					"droneHealth": map[string]int{
 						"health":       applicationStates.GetDroneHealth().DroneHealth,
 						"batteryLevel": applicationStates.GetDroneHealth().BatteryLevel,
 					},

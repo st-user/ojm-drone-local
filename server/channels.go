@@ -14,6 +14,7 @@ type RoutineCoordinator struct {
 	StopSignalChannel             chan struct{}
 	IsStopped                     bool
 	waitGroupUntilReleasingSocket sync.WaitGroup
+	mutex                         sync.Mutex
 }
 
 type DroneCommand struct {
@@ -29,6 +30,8 @@ type MotionVector struct {
 }
 
 func (r *RoutineCoordinator) InitRoutineCoordinator(force bool) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 
 	if r.IsStopped || force {
 		r.DroneCommandChannel = make(chan DroneCommand)
@@ -41,6 +44,13 @@ func (r *RoutineCoordinator) InitRoutineCoordinator(force bool) {
 }
 
 func (r *RoutineCoordinator) StopApp() {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	if r.IsStopped {
+		return
+	}
+
 	r.IsStopped = true
 	close(r.DroneCommandChannel)
 	close(r.DroneFrameChannel)

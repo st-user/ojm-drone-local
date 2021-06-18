@@ -12,6 +12,12 @@ const DRONE_HEALTH_DESCS = ['-', 'OK', 'NG'];
 const STATE_CONNECTION_RETRY_INTERVAL_MILLIS = 1000;
 const STATE_CONNECTION_MAX_RETRY = 10;
 
+enum ApplicationState {
+    Init,
+    Started
+}
+type StatesResp = { accessTokenDesc: string, applicationState: number, startKey: string };
+
 enum BatteryLevelWarningState {
     Unknown,
     Low,
@@ -26,11 +32,12 @@ enum DroneHealthState {
 }
 
 enum DroneState {
-    Unknown,
+    Init,
     Ready,
 	Land,
 	TakeOff,
 }
+
 
 class DroneHealth {
 
@@ -72,12 +79,6 @@ class DroneHealth {
 
 export { DroneHealthState, BatteryLevelWarningState };
 
-enum ApplicationState {
-    Init,
-    Started
-}
-type StatesResp = { accessTokenDesc: string, applicationState: number, startKey: string };
-
 export default class ApplicationStatesModel {
      
     private readonly viewStateModel: ViewStateModel;
@@ -87,8 +88,6 @@ export default class ApplicationStatesModel {
 
     private applicationState: ApplicationState;
     private readonly droneHealth: DroneHealth;
-
-
 
     private retryTimer: any; // eslint-disable-line @typescript-eslint/no-explicit-any
     private retryCount: number;
@@ -130,13 +129,25 @@ export default class ApplicationStatesModel {
             const messageType = dataJson.messageType;
 
             switch(messageType) {
-            case 'droneInfo':
+            case 'appInfo':
+
+                this.applicationState = dataJson.state;
+                if (this.applicationState === ApplicationState.Init) {
+
+                    this.droneHealth.setData(
+                        DroneHealthState.Unknown, BatteryLevelWarningState.Unknown
+                    );
+                    this.viewStateModel.toInit();
+                    CommonEventDispatcher.dispatch(CustomEventNames.OJM_DRONE_LOCAL__DRONE_HEALTH_CHECKED);
+                    break;
+                }
 
                 this.droneHealth.setData(
-                    dataJson.healths.health, dataJson.healths.batteryLevel
+                    dataJson.droneHealth.health, dataJson.droneHealth.batteryLevel
                 );
 
-                switch(dataJson.state) {
+
+                switch(dataJson.droneState) {
                 case DroneState.Ready:
                     this.viewStateModel.toReady();
                     break;
@@ -150,7 +161,6 @@ export default class ApplicationStatesModel {
                     break;
                 default:
                 }
-
 
                 CommonEventDispatcher.dispatch(CustomEventNames.OJM_DRONE_LOCAL__DRONE_HEALTH_CHECKED);
 

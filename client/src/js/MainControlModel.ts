@@ -67,6 +67,22 @@ export default class MainControlModel {
             });
     }
 
+    async stopApp(): Promise<void> {
+        let msg = 'Are you sure you want to stop the application?';
+        msg += ' If you terminate the application, the video streaming stops and drone lands (if it has already taken off).';
+
+        if (confirm(msg)) {
+            await fetch('/stopApp').then(res => {
+                if (res.ok) {
+                    this.viewStateModel.toInit();
+                    return;
+                }
+                throw new Error('Request does not success.');
+            });
+        }
+
+    }
+
     async takeoff(): Promise<void> {
         this.viewStateModel.toTakeOff();
         await fetch('/takeoff').then(res => res.json());

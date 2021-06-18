@@ -24,8 +24,9 @@ export default class MainControlView {
     private readonly $droneBatteryLevel: HTMLSpanElement;
 
     private readonly $startKey: HTMLInputElement;
-    private readonly $generateKey: HTMLButtonElement;
     private readonly $start: HTMLButtonElement;
+    private readonly $stop: HTMLButtonElement;
+    private readonly $generateKey: HTMLButtonElement;
 
     private readonly $takeoff: HTMLButtonElement;
     private readonly $land: HTMLButtonElement;
@@ -43,8 +44,9 @@ export default class MainControlView {
         this.$droneBatteryLevel = DOM.query('#droneBatteryLevel')!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
 
         this.$startKey = DOM.query('#startKey')!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
-        this.$generateKey = DOM.query('#generateKey')!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
         this.$start = DOM.query('#start')!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
+        this.$stop = DOM.query('#stop')!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
+        this.$generateKey = DOM.query('#generateKey')!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
 
         this.$takeoff = DOM.query('#takeoff')!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
         this.$land = DOM.query('#land')!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
@@ -75,6 +77,11 @@ export default class MainControlView {
             }
             this.mainControlModel.setStartKeyNoEvent(this.$startKey.value);
             this.mainControlModel.startApp();
+        });
+
+        DOM.click(this.$stop, (event: Event) => {
+            event.preventDefault();
+            this.mainControlModel.stopApp();
         });
 
         DOM.click(this.$takeoff, async () => {
@@ -119,24 +126,28 @@ export default class MainControlView {
 
         if (this.viewStateModel.isInit()) {
             this.$startKey.disabled = false;
+            this.$stop.disabled = true;
             this.enableStartButtons();
             this.disableControlButtons();
         }
 
         if (this.viewStateModel.isReady()) {
             this.$startKey.disabled = true;
+            this.$stop.disabled = false;
             this.disableStartButtons();
             this.disableControlButtons();
         }
 
         if (this.viewStateModel.isLand()) {
             this.$startKey.disabled = true;
+            this.$stop.disabled = false;
             this.disableStartButtons();
             this.enableControlButtons();
         }
 
         if (this.viewStateModel.isTakeOff()) {
             this.$startKey.disabled = true;
+            this.$stop.disabled = false;
             this.disableStartButtons();
             this.enableControlButtons();
         }
