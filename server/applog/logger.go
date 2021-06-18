@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/st-user/ojm-drone-local/appos"
@@ -28,48 +29,61 @@ type Logger struct {
 	warn  *log.Logger
 }
 
-func NewLogger() Logger {
-	levelInt := 1
-	levelStr := strings.ToUpper(env.Get("LOG_LEVEL"))
-	switch levelStr {
-	case "DEBUG":
-		levelInt = debug
-	case "INFO":
-		levelInt = info
-	case "WARN":
-		levelInt = warn
-	default:
-		log.Fatalf("Invalid log level: %v", levelStr)
-	}
+var once sync.Once
+var logger *Logger
+var loadChan = make(chan struct{})
 
-	deleteFiles()
-	prepare()
-	writer := createWriter()
-
-	return Logger{
-		level: levelInt,
-		debug: log.New(writer, "[DEBUG]: ", log.Ldate|log.Ltime),
-		info:  log.New(writer, "[INFO]: ", log.Ldate|log.Ltime),
-		warn:  log.New(writer, "[WARN]: ", log.Ldate|log.Ltime),
-	}
-}
-
-func (logger *Logger) Debug(format string, v ...interface{}) {
+func Debug(format string, v ...interface{}) {
+	newLogger()
 	if logger.level <= debug {
 		logger.debug.Printf(format, v...)
 	}
 }
 
-func (logger *Logger) Info(format string, v ...interface{}) {
+func Info(format string, v ...interface{}) {
+	newLogger()
 	if logger.level <= info {
 		logger.info.Printf(format, v...)
 	}
 }
 
-func (logger *Logger) Warn(format string, v ...interface{}) {
+func Warn(format string, v ...interface{}) {
+	newLogger()
 	if logger.level <= warn {
 		logger.warn.Printf(format, v...)
 	}
+}
+
+func newLogger() {
+	once.Do(func() {
+		levelInt := 1
+		levelStr := strings.ToUpper(env.Get("LOG_LEVEL"))
+		switch levelStr {
+		case "DEBUG":
+			levelInt = debug
+		case "INFO":
+			levelInt = info
+		case "WARN":
+			levelInt = warn
+		default:
+			log.Fatalf("Invalid log level: %v", levelStr)
+		}
+
+		deleteFiles()
+		prepare()
+		writer := createWriter()
+
+		logger = &Logger{
+			level: levelInt,
+			debug: log.New(writer, "[DEBUG]: ", log.Ldate|log.Ltime),
+			info:  log.New(writer, "[INFO]: ", log.Ldate|log.Ltime),
+			warn:  log.New(writer, "[WARN]: ", log.Ldate|log.Ltime),
+		}
+
+		close(loadChan)
+	})
+
+	<-loadChan
 }
 
 func createWriter() io.Writer {

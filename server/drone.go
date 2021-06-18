@@ -1,11 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
 	"github.com/pion/rtcp"
+	"github.com/st-user/ojm-drone-local/applog"
 	"gobot.io/x/gobot"
 	"gobot.io/x/gobot/platforms/dji/tello"
 )
@@ -35,7 +35,7 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator, applicationSta
 		drone.driver = driver
 
 		driver.On(tello.ConnectedEvent, func(data interface{}) {
-			fmt.Println("Starts receiving video frames from your drone.")
+			applog.Info("Starts receiving video frames from your drone.")
 			driver.StartVideo()
 			driver.SetVideoEncoderRate(tello.VideoBitRate1M)
 			gobot.Every(10*time.Second, func() {
@@ -50,7 +50,7 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator, applicationSta
 			if 3 < time.Since(lastLoggedTime).Seconds() {
 				fd := data.(*tello.FlightData)
 
-				Log.Info("Battery level %v%%", fd.BatteryPercentage)
+				applog.Info("Battery level %v%%", fd.BatteryPercentage)
 				applicationStates.DroneStates.SetBatteryLevel(fd.BatteryPercentage)
 
 				lastLoggedTime = time.Now()
@@ -75,7 +75,7 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator, applicationSta
 			defer func() {
 				if r := recover(); r != nil {
 					if loggedRecoverCount%100 == 0 {
-						Log.Info("Ignores panic. %v", r)
+						applog.Info("Ignores panic. %v", r)
 						loggedRecoverCount = 0
 					}
 					loggedRecoverCount++
@@ -126,11 +126,11 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator, applicationSta
 
 				switch _pkt := pkt.(type) {
 				case *rtcp.PictureLossIndication:
-					Log.Debug("Receives RTCP PictureLossIndication. %v", _pkt)
+					applog.Debug("Receives RTCP PictureLossIndication. %v", _pkt)
 					drone.driver.StartVideo()
 
 				case *rtcp.ReceiverEstimatedMaximumBitrate:
-					Log.Debug("Receives RTCP ReceiverEstimatedMaximumBitrate. %v", _pkt)
+					applog.Debug("Receives RTCP ReceiverEstimatedMaximumBitrate. %v", _pkt)
 					bitrate := float64(_pkt.Bitrate)
 
 					// Using the bitrate(MB) value corresponding to the one that 'rtcp.Receiver Estimated Maximum Bitrate.String()' shows.
@@ -155,11 +155,11 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator, applicationSta
 						drone.driver.SetVideoEncoderRate(tello.VideoBitRate1M)
 						changeTo = 1
 					}
-					Log.Debug("ReceiverEstimation = %.2f Mb/s. The bit rate changes to %v Mb/s", bitrateMB, changeTo)
+					applog.Debug("ReceiverEstimation = %.2f Mb/s. The bit rate changes to %v Mb/s", bitrateMB, changeTo)
 				}
 
 			case <-routineCoordinator.StopSignalChannel:
-				Log.Info("Stop drone event loop.")
+				applog.Info("Stop drone event loop.")
 				robot.Stop()
 				return
 			}
@@ -177,31 +177,31 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator, applicationSta
 
 				applicationStates.DroneStates.SetDroneHealth(DRONE_HEALTH_UNKNOWN)
 
-				Log.Info("Stop drone helth check loop.")
+				applog.Info("Stop drone helth check loop.")
 				robot.Stop()
 				return
 			default:
 
 				ok := true
 				if time.Since(lastTimestampVideoReceived).Seconds() > 5 {
-					Log.Warn("Drone fails to receive video stream.")
+					applog.Warn("Drone fails to receive video stream.")
 					ok = false
 				}
 
 				if time.Since(lastTimestampFightDataReceived).Seconds() > 5 {
-					Log.Warn("Drone fails to receive flight data.")
+					applog.Warn("Drone fails to receive flight data.")
 					ok = false
 				}
 
 				if ok {
 					applicationStates.DroneStates.SetDroneHealth(DRONE_HEALTH_OK)
 
-					Log.Debug("Drone is successfully receiving data.")
+					applog.Debug("Drone is successfully receiving data.")
 				} else {
 					applicationStates.DroneStates.SetDroneHealth(DRONE_HEALTH_NG)
 
 					robot.Stop()
-					Log.Info("Restarts robot.")
+					applog.Info("Restarts robot.")
 					startRobot()
 					time.Sleep(1 * time.Second)
 				}
@@ -214,7 +214,7 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator, applicationSta
 	go checkerFunc()
 	startRobot()
 
-	Log.Info("Drone starts.")
+	applog.Info("Drone starts.")
 }
 
 // In case of losing a stop signal (i.e '{ x: 0, y: 0 }' or '{ r: 0, z: 0 }') for some reason,
@@ -264,7 +264,7 @@ func (s *SafetySignal) startChecking(drone *Drone) {
 					s.mutex.Lock()
 					defer s.mutex.Unlock()
 
-					Log.Info("Set a zero translation vector because of losing a stop signal.")
+					applog.Info("Set a zero translation vector because of losing a stop signal.")
 					drone.driver.SetVector(0, 0, 0, 0)
 					s.endChecking()
 					return

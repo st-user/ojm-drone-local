@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/gorilla/websocket"
+	"github.com/st-user/ojm-drone-local/applog"
 	"github.com/st-user/ojm-drone-local/appos"
 )
 
@@ -86,13 +87,13 @@ func HandleFuncJSON(
 
 	http.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 
-		Log.Info("Request to %v", path)
+		applog.Info("Request to %v", path)
 
 		result, err := handler(w, r)
 
 		w.Header().Set("Content-Type", "application/json")
 		if err != nil {
-			Log.Warn("%v", err)
+			applog.Warn("%v", err)
 			WriteInternalServerError(w, &err)
 			return
 		}
@@ -103,7 +104,7 @@ func HandleFuncJSON(
 
 func WriteInternalServerError(w http.ResponseWriter, err *error) {
 	w.WriteHeader(500)
-	Log.Info("%v", err)
+	applog.Info("%v", err)
 }
 
 type OutboundRelayMessageServer struct {
@@ -135,7 +136,7 @@ func (ws *OutboundRelayMessageServer) HandleMessage(
 		WriteInternalServerError(w, &err)
 		return
 	}
-	Log.Info("Connected.")
+	applog.Info("Connected.")
 
 	go func() {
 		defer conn.Close()
@@ -146,11 +147,11 @@ func (ws *OutboundRelayMessageServer) HandleMessage(
 			case text := <-routineCoordinator.DroneStateChannel:
 				stateJson := messageHandler(text)
 				if err := conn.WriteJSON(stateJson); err != nil {
-					Log.Info("%v", err)
+					applog.Info("%v", err)
 					continue
 				}
 			case <-routineCoordinator.StopSignalChannel:
-				Log.Info("Stop OutboundRelayMessageServer")
+				applog.Info("Stop OutboundRelayMessageServer")
 				return
 			}
 

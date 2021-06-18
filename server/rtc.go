@@ -9,6 +9,7 @@ import (
 	"github.com/pion/rtcp"
 	"github.com/pion/webrtc/v3"
 	"github.com/pion/webrtc/v3/pkg/media"
+	"github.com/st-user/ojm-drone-local/applog"
 )
 
 const (
@@ -125,7 +126,7 @@ type AudiencePeerInfo struct {
 }
 
 func NewRTCHandler() *RTCHandler {
-	Log.Debug("RTCHandler is initialized.")
+	applog.Debug("RTCHandler is initialized.")
 	return &RTCHandler{
 		peerConnectionId:        "",
 		audiencePeerConnections: make(map[string]AudiencePeerInfo),
@@ -190,14 +191,14 @@ func (handler *RTCHandler) StartPrimaryConnection(
 	cap := webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeH264, ClockRate: 90000}
 	videoTrack, err := webrtc.NewTrackLocalStaticSample(cap, "video", "pion")
 	if err != nil {
-		Log.Info("%v", err)
+		applog.Info("%v", err)
 		return &webrtc.SessionDescription{}, err
 	}
 	handler.videoTrack = videoTrack
 
 	rtpSender, err := handler.rtcPeerConnection.AddTrack(videoTrack)
 	if err != nil {
-		Log.Info("%v", err)
+		applog.Info("%v", err)
 		return &webrtc.SessionDescription{}, err
 	}
 
@@ -206,7 +207,7 @@ func (handler *RTCHandler) StartPrimaryConnection(
 		for {
 			select {
 			case <-routineCoordinator.StopSignalChannel:
-				Log.Info("Stops WebRTC event loop.")
+				applog.Info("Stops WebRTC event loop.")
 				return
 			default:
 
@@ -218,7 +219,7 @@ func (handler *RTCHandler) StartPrimaryConnection(
 
 				pkts, err := rtcp.Unmarshal(rtcpPacket)
 				if err != nil {
-					Log.Info("%v", err)
+					applog.Info("%v", err)
 					continue
 				}
 
@@ -230,7 +231,7 @@ func (handler *RTCHandler) StartPrimaryConnection(
 	}()
 
 	handler.rtcPeerConnection.OnICEConnectionStateChange(func(connectionState webrtc.ICEConnectionState) {
-		Log.Info("Connection State has changed %s \n", connectionState.String())
+		applog.Info("Connection State has changed %s \n", connectionState.String())
 
 		connectionStateDesc := connectionState.String()
 		switch connectionStateDesc {
@@ -249,7 +250,7 @@ func (handler *RTCHandler) StartPrimaryConnection(
 	handler.rtcPeerConnection.OnDataChannel(func(dataChannel *webrtc.DataChannel) {
 
 		dataChannel.OnOpen(func() {
-			Log.Info("DataChannel opened.")
+			applog.Info("DataChannel opened.")
 
 			defer dataChannel.Close()
 			for {
@@ -260,12 +261,12 @@ func (handler *RTCHandler) StartPrimaryConnection(
 					}
 					data, err := json.Marshal(messageJson)
 					if err != nil {
-						Log.Info("%v", err)
+						applog.Info("%v", err)
 						continue
 					}
 					dataChannel.SendText(string(data))
 				case <-routineCoordinator.StopSignalChannel:
-					Log.Info("Stop handling dataChannel.")
+					applog.Info("Stop handling dataChannel.")
 					return
 				}
 
@@ -279,7 +280,7 @@ func (handler *RTCHandler) StartPrimaryConnection(
 				return
 			}
 			message := messageJson["command"]
-			Log.Info("%v", message)
+			applog.Info("%v", message)
 			routineCoordinator.SendDroneCommandChannel(DroneCommand{
 				CommandType: "vector",
 				Command:     message,
@@ -289,19 +290,19 @@ func (handler *RTCHandler) StartPrimaryConnection(
 	})
 
 	if err := handler.rtcPeerConnection.SetRemoteDescription(*remoteSdp); err != nil {
-		Log.Info("%v", err)
+		applog.Info("%v", err)
 		return &webrtc.SessionDescription{}, err
 	}
 
 	answer, err := handler.rtcPeerConnection.CreateAnswer(nil)
 	if err != nil {
-		Log.Info("%v", err)
+		applog.Info("%v", err)
 		return &webrtc.SessionDescription{}, err
 	}
 
 	gatherComplete := webrtc.GatheringCompletePromise(handler.rtcPeerConnection)
 	if err = handler.rtcPeerConnection.SetLocalDescription(answer); err != nil {
-		Log.Info("%v", err)
+		applog.Info("%v", err)
 		return &webrtc.SessionDescription{}, err
 	}
 
@@ -327,7 +328,7 @@ func (handler *RTCHandler) StartPrimaryConnection(
 				})
 				latest = time.Now()
 			case <-routineCoordinator.StopSignalChannel:
-				Log.Info("Stop sending video stream.")
+				applog.Info("Stop sending video stream.")
 				return
 			}
 
@@ -351,7 +352,7 @@ func (handler *RTCHandler) StartAudienceConnection(
 
 	peerConnection, err := webrtc.NewPeerConnection(*handler.config)
 	if err != nil {
-		Log.Info("%v", err)
+		applog.Info("%v", err)
 		return &webrtc.SessionDescription{}, err
 	}
 
@@ -364,7 +365,7 @@ func (handler *RTCHandler) StartAudienceConnection(
 
 	rtpSender, err := peerConnection.AddTrack(handler.videoTrack)
 	if err != nil {
-		Log.Info("%v", err)
+		applog.Info("%v", err)
 		return &webrtc.SessionDescription{}, err
 	}
 
@@ -391,10 +392,10 @@ func (handler *RTCHandler) StartAudienceConnection(
 
 			select {
 			case <-peerInfo.audienceRTCStopChannel:
-				Log.Info("Stops an audience WebRTC event loop. %v", peerConnectionId)
+				applog.Info("Stops an audience WebRTC event loop. %v", peerConnectionId)
 				return
 			case <-routineCoordinator.StopSignalChannel:
-				Log.Info("Stop audiences WebRTC event loop.")
+				applog.Info("Stop audiences WebRTC event loop.")
 				return
 			default:
 
@@ -406,7 +407,7 @@ func (handler *RTCHandler) StartAudienceConnection(
 
 				pkts, err := rtcp.Unmarshal(rtcpPacket)
 				if err != nil {
-					Log.Info("%v", err)
+					applog.Info("%v", err)
 					continue
 				}
 
@@ -422,13 +423,13 @@ func (handler *RTCHandler) StartAudienceConnection(
 
 	err = peerConnection.SetRemoteDescription(*remoteSdp)
 	if err != nil {
-		Log.Info("%v", err)
+		applog.Info("%v", err)
 		return &webrtc.SessionDescription{}, err
 	}
 
 	answer, err := peerConnection.CreateAnswer(nil)
 	if err != nil {
-		Log.Info("%v", err)
+		applog.Info("%v", err)
 		return &webrtc.SessionDescription{}, err
 	}
 
@@ -436,7 +437,7 @@ func (handler *RTCHandler) StartAudienceConnection(
 
 	err = peerConnection.SetLocalDescription(answer)
 	if err != nil {
-		Log.Info("%v", err)
+		applog.Info("%v", err)
 		return &webrtc.SessionDescription{}, err
 	}
 

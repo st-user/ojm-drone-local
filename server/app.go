@@ -19,8 +19,6 @@ import (
 	"github.com/st-user/ojm-drone-local/env"
 )
 
-var Log = applog.NewLogger()
-
 var routineCoordinator = RoutineCoordinator{}
 var applicationStates = NewApplicationStates()
 var keyChainManager appos.KeyChainManager
@@ -151,7 +149,7 @@ func generateKey(w http.ResponseWriter, r *http.Request) (*map[string]interface{
 func startApp(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, error) {
 
 	routineCoordinator.WaitUntilReleasingSocket()
-	Log.Info("End waiting for the waitgroup to be done.")
+	applog.Info("End waiting for the waitgroup to be done.")
 
 	routineCoordinator.InitRoutineCoordinator(false)
 	decoder := json.NewDecoder(r.Body)
@@ -221,7 +219,7 @@ func restartSignalingConnection(startKeyJsonBytes []byte, retryCount int, rtcHan
 	if err != nil {
 		maxRetry := env.GetInt("SIGNALING_ENDPOINT_MAX_RETRY")
 		if maxRetry < retryCount {
-			Log.Info("Fails to connect to the signaling channel. Retry count exceeds max.")
+			applog.Info("Fails to connect to the signaling channel. Retry count exceeds max.")
 			routineCoordinator.StopApp()
 			return
 		}
@@ -251,14 +249,14 @@ func startSignalingConnection(connection *websocket.Conn, rtcHandler *RTCHandler
 
 		select {
 		case <-routineCoordinator.StopSignalChannel:
-			Log.Info("Stop Signaling channel.")
+			applog.Info("Stop Signaling channel.")
 			return
 		default:
 
 			_, message, err := connection.ReadMessage()
 			if err != nil {
 				consecutiveErrorOnReadCount++
-				Log.Info("%v", err)
+				applog.Info("%v", err)
 				if 10 < consecutiveErrorOnReadCount {
 					recoverFunc()
 					close(connectionStoppedChannel)
@@ -270,7 +268,7 @@ func startSignalingConnection(connection *websocket.Conn, rtcHandler *RTCHandler
 
 			rtcMessageData, err := NewRTCMessageData(&message)
 			if err != nil {
-				Log.Info("%v", err)
+				applog.Info("%v", err)
 				continue
 			}
 			messageType := rtcMessageData.MessageType
@@ -284,18 +282,18 @@ func startSignalingConnection(connection *websocket.Conn, rtcHandler *RTCHandler
 
 				config, err := rtcMessageData.ToConfiguration()
 				if err != nil {
-					Log.Info("%v", err)
+					applog.Info("%v", err)
 					continue
 				}
 
 				err = rtcHandler.SetConfig(config)
 				if err != nil {
-					Log.Info("%v", err)
+					applog.Info("%v", err)
 					continue
 				}
 
 			case "canOffer":
-				Log.Info("canOffer")
+				applog.Info("canOffer")
 
 				peerType := rtcMessageData.ToPeerType()
 				state := rtcHandler.DecidePeerState(peerType)
@@ -310,12 +308,12 @@ func startSignalingConnection(connection *websocket.Conn, rtcHandler *RTCHandler
 
 				if state == PEER_STATE_SAME {
 					if peerType.IsPrimary {
-						Log.Info("Primary peer is requesting new connection. Restart the application.")
+						applog.Info("Primary peer is requesting new connection. Restart the application.")
 						routineCoordinator.StopApp()
 						write()
 						return
 					} else {
-						Log.Info("Audience peer(%v) is requesting new connectiond.", peerType.PeerConnectionId)
+						applog.Info("Audience peer(%v) is requesting new connectiond.", peerType.PeerConnectionId)
 						rtcHandler.SendAudienceRTCStopChannel(peerType.PeerConnectionId)
 					}
 				}
@@ -323,22 +321,22 @@ func startSignalingConnection(connection *websocket.Conn, rtcHandler *RTCHandler
 
 			case "close":
 
-				Log.Info("One of the peers has been closed.")
+				applog.Info("One of the peers has been closed.")
 				peerType := rtcMessageData.ToPeerType()
 				if rtcHandler.IsPrimary(peerType.PeerConnectionId) {
-					Log.Info("Primary peer has been closed. Restart the application.")
+					applog.Info("Primary peer has been closed. Restart the application.")
 					routineCoordinator.StopApp()
 					return
 
 				} else {
 					if !peerType.IsPrimary {
-						Log.Info("Audience peer has been closed. %v", peerType.PeerConnectionId)
+						applog.Info("Audience peer has been closed. %v", peerType.PeerConnectionId)
 						rtcHandler.SendAudienceRTCStopChannel(peerType.PeerConnectionId)
 					}
 				}
 
 			case "offer":
-				Log.Info("offer")
+				applog.Info("offer")
 
 				peerConnectionId := rtcMessageData.ToPeerConnectionId()
 
@@ -352,7 +350,7 @@ func startSignalingConnection(connection *websocket.Conn, rtcHandler *RTCHandler
 				}
 				sdp, err := rtcMessageData.ToSessionDescription()
 				if err != nil {
-					Log.Info("%v", err)
+					applog.Info("%v", err)
 					writeErrAnswer()
 					continue
 				}
@@ -368,7 +366,7 @@ func startSignalingConnection(connection *websocket.Conn, rtcHandler *RTCHandler
 				}
 
 				if err != nil {
-					Log.Info("%v", err)
+					applog.Info("%v", err)
 					writeErrAnswer()
 					continue
 				}
@@ -431,7 +429,7 @@ func land(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, erro
 func routes() {
 
 	port := env.Get("PORT")
-	Log.Info("PORT:" + port)
+	applog.Info("PORT:" + port)
 
 	routineCoordinator.InitRoutineCoordinator(true)
 	routineCoordinator.IsStopped = true
