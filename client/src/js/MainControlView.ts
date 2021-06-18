@@ -116,7 +116,7 @@ export default class MainControlView {
         CommonEventDispatcher.on(CustomEventNames.OJM_DRONE_LOCAL__DRONE_HEALTH_CHECKED, () => {
             this.droneHealth();
         });
-
+        
         this.display();
     }
 
@@ -153,10 +153,9 @@ export default class MainControlView {
         }
     }
 
-    private display() {
+    private display(): void {
         DOM.display(this.$runArea, this.tabModel.isRunSelected());
     }
-
 
     private disableStartButtons(): void {
         this.$start.disabled = true;

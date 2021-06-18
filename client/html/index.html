@@ -5,6 +5,8 @@
     </head>
     <body class="global">
 
+        <input type="hidden" id="sessionKey" name="sessionKey" value="{{ .SessionKey }}"/>
+
         <header class="header">
             <div class="p-heading-icon">
                 <div class="p-heading-icon__header">
@@ -101,9 +103,16 @@
                 </div>
 
             </div>
-
         </div>
 
+        <div class="modal-area">
+            <div class="p-modal" id="modal">
+                <section id="" class="p-modal__dialog -modal-area__dialog" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-description">
+                    <p id="modalDescription">
+                    </p>
+                </section>
+            </div>
+        </div>
 
         <script src="./js/main.js?q=!_____APP_VERSION_____!"></script>
     </body>

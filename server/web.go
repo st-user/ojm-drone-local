@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"text/template"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -33,10 +34,15 @@ var mimeTypes = map[string]string{
 }
 
 type Statics struct {
-	dir string
+	dir        string
+	sessionKey string
 }
 
-func NewStatics() Statics {
+type sessionKeyData struct {
+	SessionKey string
+}
+
+func NewStatics(sessionKey string) Statics {
 	dir := filepath.Join(appos.BaseDir(), "static")
 	_dir := os.Getenv("GO_STATIC_FILE_DIR")
 
@@ -45,7 +51,8 @@ func NewStatics() Statics {
 	}
 
 	return Statics{
-		dir: dir,
+		dir:        dir,
+		sessionKey: sessionKey,
 	}
 }
 
@@ -66,6 +73,8 @@ func (s *Statics) HandleStatic(w http.ResponseWriter, r *http.Request) {
 
 	path := filepath.Join(s.dir, filename)
 	if _, err := os.Stat(path); err != nil {
+		applog.Warn(err.Error())
+
 		if os.IsNotExist(err) {
 			w.WriteHeader(404)
 		} else {
@@ -74,13 +83,27 @@ func (s *Statics) HandleStatic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_body, err := ioutil.ReadFile(path)
-	if err != nil {
-		w.WriteHeader(500)
-		return
+	if filename == "index.html" {
+		t, err := template.ParseFiles(path)
+		if err != nil {
+			applog.Warn(err.Error())
+			w.WriteHeader(500)
+			return
+		}
+		t.Execute(w, &sessionKeyData{
+			SessionKey: s.sessionKey,
+		})
+	} else {
+		_body, err := ioutil.ReadFile(path)
+		if err != nil {
+			applog.Warn(err.Error())
+			w.WriteHeader(500)
+			return
+		}
+		w.Header().Add("Content-Type", mimeType)
+		w.Write(_body)
 	}
-	w.Header().Add("Content-Type", mimeType)
-	w.Write(_body)
+
 }
 
 func HandleFuncJSON(
@@ -95,7 +118,7 @@ func HandleFuncJSON(
 
 		w.Header().Set("Content-Type", "application/json")
 		if err != nil {
-			applog.Warn("%v", err)
+			applog.Warn(err.Error())
 			WriteInternalServerError(w, err)
 			return
 		}
@@ -172,7 +195,7 @@ func (ws *ApplicationStatesServer) Start(
 				}
 
 				if err := conn.WriteJSON(data); err != nil {
-					applog.Warn("%v", err)
+					applog.Warn(err.Error())
 				}
 
 				time.Sleep(1 * time.Second)
@@ -187,13 +210,32 @@ func (ws *ApplicationStatesServer) Start(
 		defer conn.Close()
 
 		for {
-			if _, _, err := conn.ReadMessage(); err != nil {
+			_, message, err := conn.ReadMessage()
+
+			if err != nil {
 				if consectiveErrorRead > 10 {
 					return
 				}
 				consectiveErrorRead++
-			} else {
-				consectiveErrorRead = 0
+				continue
+			}
+			consectiveErrorRead = 0
+
+			messageJson := make(map[string]string)
+			err = json.Unmarshal(message, &messageJson)
+
+			if err != nil {
+				applog.Warn(err.Error())
+				continue
+			}
+
+			messageType := messageJson["messageType"]
+
+			if messageType == "checkSessionKey" {
+				conn.WriteJSON(map[string]string{
+					"messageType":       "checkSessionKey",
+					"currentSessionKey": applicationStates.SessionKey,
+				})
 			}
 		}
 

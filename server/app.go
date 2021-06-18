@@ -491,7 +491,7 @@ func routes() {
 	}
 	keyChainManager = km
 
-	statics := NewStatics()
+	statics := NewStatics(applicationStates.SessionKey)
 
 	HandleFuncJSON("/checkApplicationStates", checkApplicationStates)
 	HandleFuncJSON("/updateAccessToken", updateAccessToken)

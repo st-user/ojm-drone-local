@@ -1,4 +1,4 @@
-import { CommonEventDispatcher } from 'client-js-lib';
+import { CommonEventDispatcher, DOM } from 'client-js-lib';
 import { CustomEventNames } from './CustomEventNames';
 
 import TabModel from './TabModel';
@@ -6,6 +6,7 @@ import MainControlModel from './MainControlModel';
 import SetupModel from './SetupModel';
 
 import ViewStateModel from './ViewStateModel';
+import ModalModel from './ModalModel';
 
 const DRONE_HEALTH_DESCS = ['-', 'OK', 'NG'];
 
@@ -14,7 +15,8 @@ const STATE_CONNECTION_MAX_RETRY = 10;
 
 enum ApplicationState {
     Init,
-    Started
+    Started,
+    Terminated
 }
 type StatesResp = { accessTokenDesc: string, applicationState: number, startKey: string };
 
@@ -28,14 +30,14 @@ enum BatteryLevelWarningState {
 enum DroneHealthState {
     Unknown,
 	Ok,
-	Ng,
+	Ng
 }
 
 enum DroneState {
     Init,
     Ready,
 	Land,
-	TakeOff,
+	TakeOff
 }
 
 
@@ -85,21 +87,29 @@ export default class ApplicationStatesModel {
     private readonly tabModel: TabModel;
     private readonly setupModel: SetupModel
     private readonly mainControlModel: MainControlModel;
+    private readonly modalModel: ModalModel;
 
+    private readonly sessionKey: string;
     private applicationState: ApplicationState;
     private readonly droneHealth: DroneHealth;
+
+    private websocket: WebSocket | undefined;
 
     private retryTimer: any; // eslint-disable-line @typescript-eslint/no-explicit-any
     private retryCount: number;
 
-    constructor(viewStateModel: ViewStateModel, tabModel: TabModel, setupModel: SetupModel, mainControlModel: MainControlModel) {
+    constructor(viewStateModel: ViewStateModel, tabModel: TabModel, setupModel: SetupModel, mainControlModel: MainControlModel, modalModel: ModalModel) {
         this.viewStateModel = viewStateModel;
         this.tabModel = tabModel;
         this.setupModel = setupModel;
         this.mainControlModel = mainControlModel;
+        this.modalModel = modalModel;
 
+        this.sessionKey = (DOM.query('#sessionKey') as HTMLInputElement).value; // eslint-disable-line @typescript-eslint/no-non-null-assertion
         this.applicationState = ApplicationState.Init;
         this.droneHealth = new DroneHealth();
+
+        this.websocket = undefined;
         this.retryTimer = undefined;
         this.retryCount = 0;
     }
@@ -122,13 +132,20 @@ export default class ApplicationStatesModel {
 
     private initStatesClient(startAppOnOpen: boolean): void {
         const wsProtocol = 0 <= location.protocol.indexOf('https') ? 'wss' : 'ws';
-        const websocket = new WebSocket(`${wsProtocol}://${location.host}/state`);
-        websocket.onmessage = (event: MessageEvent) => {
+        this.websocket = new WebSocket(`${wsProtocol}://${location.host}/state`);
+        this.websocket.onmessage = (event: MessageEvent) => {
+
+            if (this.applicationState === ApplicationState.Terminated) {
+                return;
+            }
 
             const dataJson = JSON.parse(event.data);
             const messageType = dataJson.messageType;
 
             switch(messageType) {
+            case 'checkSessionKey':
+                this.detectServerStopping(dataJson.currentSessionKey);
+                break;
             case 'appInfo':
 
                 this.applicationState = dataJson.state;
@@ -170,18 +187,23 @@ export default class ApplicationStatesModel {
             }
         };
 
-        websocket.onopen = () => {
+        this.websocket.onopen = () => {
 
-            console.log('open');
-            clearTimeout(this.retryTimer);
-            this.retryCount = 0;
+            this.stopRetrying();
 
             if (startAppOnOpen && this.applicationState === ApplicationState.Started) {
                 this.mainControlModel.startApp();
             }
+
+            if (this.websocket)  {
+                this.websocket.send(JSON.stringify({
+                    'messageType': 'checkSessionKey'
+                }));
+            }
+
         };
 
-        websocket.onclose = () => {
+        this.websocket.onclose = () => {
             this.retry();
         };
     }
@@ -191,11 +213,11 @@ export default class ApplicationStatesModel {
         this.retryTimer = setTimeout(() => {
             this.retryCount++;
             if (STATE_CONNECTION_MAX_RETRY < this.retryCount) {
-                clearTimeout(this.retryTimer);
-                this.retryCount = 0;
-                alert('Can not start application. Remote server may be unavailable.');
+                this.stopRetrying();
+                this.setModalMessage('Can not start application. Remote server may be unavailable.');        
                 return;
             }
+            this.setModalMessage('Trying to establish a connection to the server...');
             this.initStatesClient(false);
             this.retry();
         }, STATE_CONNECTION_RETRY_INTERVAL_MILLIS);
@@ -203,5 +225,30 @@ export default class ApplicationStatesModel {
 
     getDroneHealth(): DroneHealth {
         return this.droneHealth;
+    }
+
+    setTerminated(): void {
+        this.applicationState = ApplicationState.Terminated;
+    }
+
+    private setModalMessage(message: string): void {
+        if (this.applicationState !== ApplicationState.Terminated) {
+            this.modalModel.setMessage(message);
+        }
+    }
+
+    private stopRetrying(): void {
+        clearTimeout(this.retryTimer);
+        this.retryCount = 0;
+    }
+
+    
+    private detectServerStopping(currentSessionKey: string): void {
+        if (this.sessionKey !== currentSessionKey) {
+            this.applicationState = ApplicationState.Terminated;
+            this.stopRetrying();
+            alert('The server has restarted. You have to reload the page.');
+            location.href = '/';
+        }
     }
 }

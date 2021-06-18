@@ -3,6 +3,8 @@ package main
 import (
 	"sync"
 	"sync/atomic"
+
+	"github.com/google/uuid"
 )
 
 const (
@@ -28,6 +30,7 @@ type ApplicationStates struct {
 	currentStartKey  atomic.Value
 	droneHealths     atomic.Value
 	droneState       atomic.Value
+	SessionKey       string
 	StartStopMux     sync.Mutex
 }
 
@@ -47,6 +50,11 @@ func NewApplicationStates() *ApplicationStates {
 		DroneHealth: DRONE_HEALTH_UNKNOWN,
 	})
 	a.SetDroneState(DRONE_STATE_INIT)
+	key, err := uuid.NewRandom()
+	if err != nil {
+		panic(err)
+	}
+	a.SessionKey = key.String()
 
 	return a
 }
