@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/st-user/ojm-drone-local/appos"
@@ -16,38 +17,57 @@ type Environment struct {
 	data map[string]string
 }
 
-func LoadEnv() Environment {
-	path := filepath.Join(appos.BaseDir(), ".env")
-	_path := os.Getenv("GO_ENV_FILE_PATH")
+var once sync.Once
+var singleton *Environment
+var loadChan = make(chan struct{})
 
-	if len(_path) > 0 {
-		path = _path
-	}
-
-	return loadEnvFrom(path)
+func Get(key string) string {
+	loadEnv()
+	return singleton.data[key]
 }
 
-func (env *Environment) Get(key string) string {
-	return env.data[key]
-}
-
-func (env *Environment) GetInt(key string) int {
-	ret, err := strconv.Atoi(env.Get(key))
+func GetInt(key string) int {
+	ret, err := strconv.Atoi(Get(key))
 	if err != nil {
 		return 0
 	}
 	return ret
 }
 
-func (env *Environment) GetDuration(key string) time.Duration {
-	ret, err := time.ParseDuration(env.Get(key))
+func GetBool(key string) bool {
+	ret, err := strconv.ParseBool(Get(key))
+	if err != nil {
+		return false
+	}
+	return ret
+}
+
+func GetDuration(key string) time.Duration {
+	ret, err := time.ParseDuration(Get(key))
 	if err != nil {
 		return 0
 	}
 	return ret
 }
 
-func loadEnvFrom(path string) Environment {
+func loadEnv() {
+
+	once.Do(func() {
+		path := filepath.Join(appos.BaseDir(), ".env")
+		_path := os.Getenv("GO_ENV_FILE_PATH")
+
+		if len(_path) > 0 {
+			path = _path
+		}
+
+		singleton = loadEnvFrom(path)
+
+		close(loadChan)
+	})
+	<-loadChan
+}
+
+func loadEnvFrom(path string) *Environment {
 	body, err := ioutil.ReadFile(path)
 
 	if err != nil {
@@ -72,7 +92,7 @@ func loadEnvFrom(path string) Environment {
 		ret[key] = value
 	}
 
-	return Environment{
+	return &Environment{
 		data: ret,
 	}
 }

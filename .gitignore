@@ -5,4 +5,4 @@ client/dist/
 client/dist-discard/
 client/scss-dest
 .DS_Store
-server/dump
+log

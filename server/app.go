@@ -19,15 +19,14 @@ import (
 	"github.com/st-user/ojm-drone-local/env"
 )
 
-var ENV = env.LoadEnv()
-var Log = applog.NewLogger(ENV.Get("LOG_LEVEL"))
+var Log = applog.NewLogger()
 
 var routineCoordinator = RoutineCoordinator{}
 var applicationStates = NewApplicationStates()
 var keyChainManager appos.KeyChainManager
 
 func toEndpointUrlWithTrailingSlash() string {
-	endpoint := ENV.Get("SIGNALING_ENDPOINT")
+	endpoint := env.Get("SIGNALING_ENDPOINT")
 	if string(endpoint[len(endpoint)-1]) != "/" {
 		endpoint = endpoint + "/"
 	}
@@ -220,14 +219,14 @@ func restartSignalingConnection(startKeyJsonBytes []byte, retryCount int, rtcHan
 	copy(b, startKeyJsonBytes)
 	err := negotiateSignalingConnection(b, rtcHandler)
 	if err != nil {
-		maxRetry := ENV.GetInt("SIGNALING_ENDPOINT_MAX_RETRY")
+		maxRetry := env.GetInt("SIGNALING_ENDPOINT_MAX_RETRY")
 		if maxRetry < retryCount {
 			Log.Info("Fails to connect to the signaling channel. Retry count exceeds max.")
 			routineCoordinator.StopApp()
 			return
 		}
 
-		interval := ENV.GetDuration("SIGNALING_ENDPOINT_RETRY_INTERVAL")
+		interval := env.GetDuration("SIGNALING_ENDPOINT_RETRY_INTERVAL")
 		time.Sleep(interval)
 		retryCount = retryCount + 1
 		restartSignalingConnection(startKeyJsonBytes, retryCount, rtcHandler)
@@ -431,7 +430,7 @@ func land(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, erro
 
 func routes() {
 
-	port := ENV.Get("PORT")
+	port := env.Get("PORT")
 	Log.Info("PORT:" + port)
 
 	routineCoordinator.InitRoutineCoordinator(true)
@@ -476,7 +475,7 @@ func routes() {
 
 func main() {
 	go routes()
-	go appos.OpenBrowser("http://localhost:"+ENV.Get("PORT"), 3*time.Second)
+	go appos.OpenBrowser("http://localhost:"+env.Get("PORT"), 3*time.Second)
 
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt)
