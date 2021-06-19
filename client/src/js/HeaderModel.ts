@@ -1,3 +1,5 @@
+import { postJsonCgi } from './Auth';
+
 export default class HeaderModel {
     
     async terminate(): Promise<void> {
@@ -8,7 +10,7 @@ export default class HeaderModel {
 
         if (confirm(msg)) {
 
-            await fetch('/terminate').then(res => {
+            await postJsonCgi('/terminate').then(res => {
                 if (res.ok) {
                     return;
                 }

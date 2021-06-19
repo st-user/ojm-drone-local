@@ -1,5 +1,6 @@
 import { CommonEventDispatcher } from 'client-js-lib';
 import { CustomEventNames } from './CustomEventNames';
+import { postJsonCgi, deleteCgi } from './Auth';
 
 export default class SetupModel {
  
@@ -18,34 +19,25 @@ export default class SetupModel {
                 return;
             }
         }
-        await fetch('/updateAccessToken', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                'accessToken': this.accessToken
-            })
-        }).then(res => {
-            if (res.status !== 200) {
-                throw new Error('Invalid response');
-            }
-            return res.json();
-        }).then(ret => {
-            this.accessToken = '';
-            this.savedAccessTokenDesc = ret.accessTokenDesc;
-            CommonEventDispatcher.dispatch(CustomEventNames.OJM_DRONE_LOCAL__ACCESS_TOKEN_INPUT_STATE_CHANGED);
-        }).catch(() => {
-            alert('Failed to update access token. The input token may be invalid.');
-            CommonEventDispatcher.dispatch(CustomEventNames.OJM_DRONE_LOCAL__ACCESS_TOKEN_INPUT_STATE_CHANGED);
-        });
+        await postJsonCgi('/updateAccessToken', JSON.stringify({ 'accessToken': this.accessToken }))
+            .then(res => {
+                if (res.status !== 200) {
+                    throw new Error('Invalid response');
+                }
+                return res.json();
+            }).then(ret => {
+                this.accessToken = '';
+                this.savedAccessTokenDesc = ret.accessTokenDesc;
+                CommonEventDispatcher.dispatch(CustomEventNames.OJM_DRONE_LOCAL__ACCESS_TOKEN_INPUT_STATE_CHANGED);
+            }).catch(() => {
+                alert('Failed to update access token. The input token may be invalid.');
+                CommonEventDispatcher.dispatch(CustomEventNames.OJM_DRONE_LOCAL__ACCESS_TOKEN_INPUT_STATE_CHANGED);
+            });
     }
 
     async delete(): Promise<void> {
         if (confirm('Are you sure you want to delete the existing access token?')) {
-            await fetch('/deleteAccessToken', {
-                method: 'DELETE'
-            }).then(res => res.json()).finally(() => {
+            await deleteCgi('/deleteAccessToken').then(res => res.json()).finally(() => {
                 this.accessToken = '';
                 this.savedAccessTokenDesc = '';
                 CommonEventDispatcher.dispatch(CustomEventNames.OJM_DRONE_LOCAL__ACCESS_TOKEN_INPUT_STATE_CHANGED);

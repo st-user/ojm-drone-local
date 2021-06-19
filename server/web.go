@@ -9,6 +9,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/st-user/ojm-drone-local/applog"
 	"github.com/st-user/ojm-drone-local/appos"
@@ -107,10 +108,11 @@ func (s *Statics) HandleStatic(w http.ResponseWriter, r *http.Request) {
 }
 
 func HandleFuncJSON(
+	router *mux.Router,
 	path string,
-	handler func(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, error)) {
+	handler func(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, error)) *mux.Route {
 
-	http.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+	return router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 
 		applog.Info("Request to %v", path)
 

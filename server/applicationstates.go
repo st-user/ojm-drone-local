@@ -25,6 +25,10 @@ const (
 	DRONE_STATE_TAKEOFF = 3
 )
 
+const (
+	SESSION_KEY_HTTP_HEADER_KEY = "x-ojm-drone-local-session-key"
+)
+
 type ApplicationStates struct {
 	applicationState atomic.Value
 	currentStartKey  atomic.Value

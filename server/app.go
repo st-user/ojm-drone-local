@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/pion/webrtc/v3"
 	"github.com/st-user/ojm-drone-local/applog"
@@ -477,6 +478,25 @@ func terminate(w http.ResponseWriter, r *http.Request) (*map[string]interface{},
 	return &responseBody, nil
 }
 
+func checkSessionKeyMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		incomingSessionKey := r.Header.Get(SESSION_KEY_HTTP_HEADER_KEY)
+
+		if len(incomingSessionKey) == 0 {
+			incomingSessionKey = r.URL.Query().Get("sessionKey")
+		}
+
+		if incomingSessionKey != applicationStates.SessionKey {
+			w.WriteHeader(http.StatusForbidden)
+			w.Write([]byte("Invalid session key"))
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func routes() {
 
 	port := env.Get("PORT")
@@ -491,22 +511,26 @@ func routes() {
 	}
 	keyChainManager = km
 
+	rootRouter := mux.NewRouter()
+	cgiRouter := rootRouter.PathPrefix("/cgi").Subrouter()
+	cgiRouter.Use(checkSessionKeyMiddleware)
+	staticRouter := rootRouter.PathPrefix("/").Subrouter()
+
+	HandleFuncJSON(cgiRouter, "/checkApplicationStates", checkApplicationStates).Methods(http.MethodGet)
+	HandleFuncJSON(cgiRouter, "/updateAccessToken", updateAccessToken).Methods(http.MethodPost)
+	HandleFuncJSON(cgiRouter, "/deleteAccessToken", deleteAccessToken).Methods(http.MethodDelete)
+	HandleFuncJSON(cgiRouter, "/generateKey", generateKey).Methods(http.MethodGet)
+	HandleFuncJSON(cgiRouter, "/stopApp", stopApp).Methods(http.MethodPost)
+	HandleFuncJSON(cgiRouter, "/startApp", startApp).Methods(http.MethodPost)
+	HandleFuncJSON(cgiRouter, "/takeoff", takeoff).Methods(http.MethodPost)
+	HandleFuncJSON(cgiRouter, "/land", land).Methods(http.MethodPost)
+	HandleFuncJSON(cgiRouter, "/terminate", terminate).Methods(http.MethodPost)
+	cgiRouter.HandleFunc("/state", state)
+
 	statics := NewStatics(applicationStates.SessionKey)
+	staticRouter.PathPrefix("/").HandlerFunc(statics.HandleStatic)
 
-	HandleFuncJSON("/checkApplicationStates", checkApplicationStates)
-	HandleFuncJSON("/updateAccessToken", updateAccessToken)
-	HandleFuncJSON("/deleteAccessToken", deleteAccessToken)
-	HandleFuncJSON("/generateKey", generateKey)
-	HandleFuncJSON("/stopApp", stopApp)
-	HandleFuncJSON("/startApp", startApp)
-	HandleFuncJSON("/takeoff", takeoff)
-	HandleFuncJSON("/land", land)
-	HandleFuncJSON("/terminate", terminate)
-
-	http.HandleFunc("/state", state)
-	http.HandleFunc("/", statics.HandleStatic)
-
-	log.Fatal(http.ListenAndServe("localhost:"+port, nil))
+	log.Fatal(http.ListenAndServe("localhost:"+port, rootRouter))
 }
 
 func main() {

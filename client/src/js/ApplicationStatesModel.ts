@@ -1,4 +1,4 @@
-import { CommonEventDispatcher, DOM } from 'client-js-lib';
+import { CommonEventDispatcher } from 'client-js-lib';
 import { CustomEventNames } from './CustomEventNames';
 
 import TabModel from './TabModel';
@@ -7,6 +7,8 @@ import SetupModel from './SetupModel';
 
 import ViewStateModel from './ViewStateModel';
 import ModalModel from './ModalModel';
+
+import { SESSION_KEY_HTTP_HEADER_VALUE, getCgi } from './Auth';
 
 const DRONE_HEALTH_DESCS = ['-', 'OK', 'NG'];
 
@@ -105,7 +107,7 @@ export default class ApplicationStatesModel {
         this.mainControlModel = mainControlModel;
         this.modalModel = modalModel;
 
-        this.sessionKey = (DOM.query('#sessionKey') as HTMLInputElement).value; // eslint-disable-line @typescript-eslint/no-non-null-assertion
+        this.sessionKey = SESSION_KEY_HTTP_HEADER_VALUE;
         this.applicationState = ApplicationState.Init;
         this.droneHealth = new DroneHealth();
 
@@ -116,7 +118,7 @@ export default class ApplicationStatesModel {
 
     async init(): Promise<void> {
 
-        const statesResp: StatesResp = await fetch('/checkApplicationStates')
+        const statesResp: StatesResp = await getCgi('/checkApplicationStates')
             .then(res => res.json());
 
         this.applicationState = statesResp.applicationState;
@@ -132,7 +134,7 @@ export default class ApplicationStatesModel {
 
     private initStatesClient(startAppOnOpen: boolean): void {
         const wsProtocol = 0 <= location.protocol.indexOf('https') ? 'wss' : 'ws';
-        this.websocket = new WebSocket(`${wsProtocol}://${location.host}/state`);
+        this.websocket = new WebSocket(`${wsProtocol}://${location.host}/cgi/state?sessionKey=${SESSION_KEY_HTTP_HEADER_VALUE}`);
         this.websocket.onmessage = (event: MessageEvent) => {
 
             if (this.applicationState === ApplicationState.Terminated) {

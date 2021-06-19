@@ -1,4 +1,5 @@
 import { CommonEventDispatcher } from 'client-js-lib';
+import { getCgi, postJsonCgi } from './Auth';
 import { CustomEventNames } from './CustomEventNames';
 import ViewStateModel from './ViewStateModel';
 
@@ -14,7 +15,7 @@ export default class MainControlModel {
     }
 
     async generateKey(): Promise<void> {
-        await fetch('/generateKey')
+        await getCgi('/generateKey')
             .then(res => res.json())
             .then(ret => {
                 this.setStartKeyWithEvent(ret.startKey);
@@ -41,15 +42,7 @@ export default class MainControlModel {
     async startApp(): Promise<void> {
         const startKey = this.startKey;
 
-        await fetch('/startApp', {
-            method: 'POST',
-            headers: {
-                'Content-type': 'application/json'
-            },
-            body: JSON.stringify({
-                startKey
-            })
-        })
+        await postJsonCgi('/startApp', JSON.stringify({ startKey }))
             .then(res => {
                 if (res.ok) {
                     return res.json();
@@ -72,7 +65,7 @@ export default class MainControlModel {
         msg += ' If you terminate the application, the video streaming stops and drone lands (if it has already taken off).';
 
         if (confirm(msg)) {
-            await fetch('/stopApp').then(res => {
+            await postJsonCgi('/stopApp').then(res => {
                 if (res.ok) {
                     this.viewStateModel.toInit();
                     return;
@@ -85,11 +78,11 @@ export default class MainControlModel {
 
     async takeoff(): Promise<void> {
         this.viewStateModel.toTakeOff();
-        await fetch('/takeoff').then(res => res.json());
+        await postJsonCgi('/takeoff').then(res => res.json());
     }
 
     async land(): Promise<void> {
         this.viewStateModel.toLand();
-        await fetch('/land').then(res => res.json());
+        await postJsonCgi('/land').then(res => res.json());
     }
 }
