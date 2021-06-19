@@ -9,7 +9,7 @@ import SetupModel from './SetupModel';
 import ViewStateModel from './ViewStateModel';
 import ModalModel from './ModalModel';
 
-import { SESSION_KEY_HTTP_HEADER_VALUE, getCgi } from './Auth';
+import { SESSION_KEY_HTTP_HEADER_VALUE, getCgi } from './AuthorizedAccess';
 
 const DRONE_HEALTH_DESCS = ['-', 'OK', 'NG'];
 
@@ -21,7 +21,12 @@ enum ApplicationState {
     Started,
     Terminated
 }
-type StatesResp = { accessTokenDesc: string, applicationState: number, startKey: string };
+
+type StatesResp = { 
+    accessTokenDesc: string, 
+    applicationState: number, 
+    startKey: string
+};
 
 enum BatteryLevelWarningState {
     Unknown,
@@ -101,7 +106,13 @@ export default class ApplicationStatesModel {
     private retryTimer: any; // eslint-disable-line @typescript-eslint/no-explicit-any
     private retryCount: number;
 
-    constructor(viewStateModel: ViewStateModel, tabModel: TabModel, setupModel: SetupModel, mainControlModel: MainControlModel, modalModel: ModalModel) {
+    constructor(
+        viewStateModel: ViewStateModel, 
+        tabModel: TabModel, 
+        setupModel: SetupModel, 
+        mainControlModel: MainControlModel, 
+        modalModel: ModalModel
+    ) {
         this.viewStateModel = viewStateModel;
         this.tabModel = tabModel;
         this.setupModel = setupModel;
@@ -149,6 +160,7 @@ export default class ApplicationStatesModel {
             case 'checkSessionKey':
                 this.detectServerStopping(dataJson.currentSessionKey);
                 break;
+
             case 'appInfo':
 
                 this.applicationState = dataJson.state;

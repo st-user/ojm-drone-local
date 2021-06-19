@@ -1,6 +1,6 @@
 import { CommonEventDispatcher } from 'client-js-lib';
 import { CustomEventNames } from './CustomEventNames';
-import { postJsonCgi, deleteCgi } from './Auth';
+import { postJsonCgi, deleteCgi } from './AuthorizedAccess';
 import Messages from './Messages';
 
 export default class SetupModel {

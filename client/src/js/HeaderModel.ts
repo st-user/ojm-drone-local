@@ -1,4 +1,4 @@
-import { postJsonCgi } from './Auth';
+import { postJsonCgi } from './AuthorizedAccess';
 import Messages from './Messages';
 
 export default class HeaderModel {

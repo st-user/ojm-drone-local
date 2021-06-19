@@ -1,6 +1,6 @@
 import { CommonEventDispatcher } from 'client-js-lib';
 
-import { getCgi, postJsonCgi } from './Auth';
+import { getCgi, postJsonCgi } from './AuthorizedAccess';
 import Messages from './Messages';
 import { CustomEventNames } from './CustomEventNames';
 import ViewStateModel from './ViewStateModel';
