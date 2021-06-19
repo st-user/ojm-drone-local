@@ -78,7 +78,7 @@ func updateAccessToken(w http.ResponseWriter, r *http.Request) (*map[string]inte
 	res, err := client.Do(req)
 
 	if err != nil || res.StatusCode != 200 {
-		return nil, fmt.Errorf("encounters an error during handling response. %v %v", err, res.Status)
+		return nil, fmt.Errorf("encounters an error during handling response. %v", err)
 	}
 	defer res.Body.Close()
 
@@ -487,7 +487,7 @@ func checkSessionKeyMiddleware(next http.Handler) http.Handler {
 			incomingSessionKey = r.URL.Query().Get("sessionKey")
 		}
 
-		if incomingSessionKey != applicationStates.SessionKey {
+		if incomingSessionKey != applicationStates.GetSessionKey() {
 			w.WriteHeader(http.StatusForbidden)
 			w.Write([]byte("Invalid session key"))
 			return
@@ -527,7 +527,7 @@ func routes() {
 	HandleFuncJSON(cgiRouter, "/terminate", terminate).Methods(http.MethodPost)
 	cgiRouter.HandleFunc("/state", state)
 
-	statics := NewStatics(applicationStates.SessionKey)
+	statics := NewStatics(applicationStates.GetSessionKey())
 	staticRouter.PathPrefix("/").HandlerFunc(statics.HandleStatic)
 
 	log.Fatal(http.ListenAndServe("localhost:"+port, rootRouter))

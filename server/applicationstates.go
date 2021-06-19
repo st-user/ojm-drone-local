@@ -34,7 +34,7 @@ type ApplicationStates struct {
 	currentStartKey  atomic.Value
 	droneHealths     atomic.Value
 	droneState       atomic.Value
-	SessionKey       string
+	sessionKey       atomic.Value
 	StartStopMux     sync.Mutex
 }
 
@@ -54,11 +54,7 @@ func NewApplicationStates() *ApplicationStates {
 		DroneHealth: DRONE_HEALTH_UNKNOWN,
 	})
 	a.SetDroneState(DRONE_STATE_INIT)
-	key, err := uuid.NewRandom()
-	if err != nil {
-		panic(err)
-	}
-	a.SessionKey = key.String()
+	a.ChangeSessionKey()
 
 	return a
 }
@@ -93,6 +89,22 @@ func (a *ApplicationStates) GetDroneState() DroneState {
 
 func (a *ApplicationStates) SetDroneState(state DroneState) {
 	a.droneState.Store(state)
+}
+
+func (a *ApplicationStates) GetSessionKey() string {
+	return a.sessionKey.Load().(string)
+}
+
+func (a *ApplicationStates) SetSessionKey(sessionKey string) {
+	a.sessionKey.Store(sessionKey)
+}
+
+func (a *ApplicationStates) ChangeSessionKey() {
+	key, err := uuid.NewRandom()
+	if err != nil {
+		panic(err)
+	}
+	a.SetSessionKey(key.String())
 }
 
 func (a *ApplicationStates) IsStarted() bool {

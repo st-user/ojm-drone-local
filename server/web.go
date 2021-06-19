@@ -35,8 +35,7 @@ var mimeTypes = map[string]string{
 }
 
 type Statics struct {
-	dir        string
-	sessionKey string
+	dir string
 }
 
 type sessionKeyData struct {
@@ -52,8 +51,7 @@ func NewStatics(sessionKey string) Statics {
 	}
 
 	return Statics{
-		dir:        dir,
-		sessionKey: sessionKey,
+		dir: dir,
 	}
 }
 
@@ -85,6 +83,7 @@ func (s *Statics) HandleStatic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if filename == "index.html" {
+		applicationStates.ChangeSessionKey()
 		t, err := template.ParseFiles(path)
 		if err != nil {
 			applog.Warn(err.Error())
@@ -92,7 +91,7 @@ func (s *Statics) HandleStatic(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		t.Execute(w, &sessionKeyData{
-			SessionKey: s.sessionKey,
+			SessionKey: applicationStates.GetSessionKey(),
 		})
 	} else {
 		_body, err := ioutil.ReadFile(path)
@@ -188,6 +187,7 @@ func (ws *ApplicationStatesServer) Start(
 			default:
 				data := map[string]interface{}{
 					"messageType": "appInfo",
+					"sessionKey":  applicationStates.GetSessionKey(),
 					"state":       applicationStates.GetState(),
 					"droneState":  applicationStates.GetDroneState(),
 					"droneHealth": map[string]int{
@@ -236,7 +236,7 @@ func (ws *ApplicationStatesServer) Start(
 			if messageType == "checkSessionKey" {
 				conn.WriteJSON(map[string]string{
 					"messageType":       "checkSessionKey",
-					"currentSessionKey": applicationStates.SessionKey,
+					"currentSessionKey": applicationStates.GetSessionKey(),
 				})
 			}
 		}

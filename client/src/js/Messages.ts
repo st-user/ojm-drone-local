@@ -3,6 +3,7 @@ let Messages = {
     msg: {
         ApplicationStatesModel_001: 'Trying to restart the application...',
         ApplicationStatesModel_002: 'The application has restarted. This page will be reloaded.',
+        ApplicationStatesModel_003: 'Another browser tab should have opened. This tab is terminated.',
         HeaderModel_001: 'Are you sure you want to terminate the application?' + ' If you terminate the application, the drone lands (if it has already taken off) and the application entirely stops.',
         HeaderView_001: 'The application has been terminated.' + howToRestart,
         MainControlModel_001: 'Are you sure you want to stop the application?' + ' If you terminate the application, the video streaming stops and drone lands (if it has already taken off).',
@@ -25,6 +26,7 @@ if (/^ja\b/.test(navigator.language)) {
         msg: {
             ApplicationStatesModel_001: 'アプリケーションを再起動しようとしています...',
             ApplicationStatesModel_002: 'アプリケーションが再起動しました。このページは再読み込みされます。',
+            ApplicationStatesModel_003: '別のブラウザタブが開いているはずです。このタブは終了します。',
             HeaderModel_001: 'アプリケーションを終了してもよろしいですか？' + ' アプリケーションを終了すると、ドローンが着陸し（すでに離陸している場合）、アプリケーションは完全に停止します。',
             HeaderView_001: 'アプリケーションは終了しました。' + howToRestart_ja,
             MainControlModel_001: 'アプリケーションを停止してもよろしいですか？' + ' アプリケーションを終了すると、ビデオストリーミングが停止し、ドローンが着陸します（すでに離陸している場合）。',

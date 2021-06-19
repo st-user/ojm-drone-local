@@ -163,6 +163,16 @@ export default class ApplicationStatesModel {
 
             case 'appInfo':
 
+                if (this.sessionKey !== dataJson.sessionKey) {
+                    this.setModalMessage(Messages.msg.ApplicationStatesModel_003);
+                    this.stopRetrying();
+                    this.setTerminated();
+                    if (this.websocket) {
+                        this.websocket.close();
+                    }
+                    return;
+                }
+
                 this.applicationState = dataJson.state;
                 if (this.applicationState === ApplicationState.Init) {
 
