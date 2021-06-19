@@ -9,15 +9,7 @@ export default class HeaderModel {
         msg += ' In order to restart the application, you have to run the server (double click the exe file) manually.';
 
         if (confirm(msg)) {
-
-            await postJsonCgi('/terminate').then(res => {
-                if (res.ok) {
-                    return;
-                }
-                throw new Error('Request does not success.');
-            });
+            await postJsonCgi('/terminate');
         }
-
-
     }
 }

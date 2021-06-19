@@ -19,25 +19,22 @@ export default class SetupModel {
                 return;
             }
         }
-        await postJsonCgi('/updateAccessToken', JSON.stringify({ 'accessToken': this.accessToken }))
-            .then(res => {
-                if (res.status !== 200) {
-                    throw new Error('Invalid response');
-                }
-                return res.json();
-            }).then(ret => {
+        const errorMsg = 'Failed to update access token. The input token may be invalid.';
+        await postJsonCgi('/updateAccessToken', JSON.stringify({ 'accessToken': this.accessToken }), errorMsg)
+            .then(res => res.json())
+            .then(ret => {
                 this.accessToken = '';
                 this.savedAccessTokenDesc = ret.accessTokenDesc;
                 CommonEventDispatcher.dispatch(CustomEventNames.OJM_DRONE_LOCAL__ACCESS_TOKEN_INPUT_STATE_CHANGED);
-            }).catch(() => {
-                alert('Failed to update access token. The input token may be invalid.');
+            }).catch(e => {
+                console.error(e);
                 CommonEventDispatcher.dispatch(CustomEventNames.OJM_DRONE_LOCAL__ACCESS_TOKEN_INPUT_STATE_CHANGED);
             });
     }
 
     async delete(): Promise<void> {
         if (confirm('Are you sure you want to delete the existing access token?')) {
-            await deleteCgi('/deleteAccessToken').then(res => res.json()).finally(() => {
+            await deleteCgi('/deleteAccessToken').then(res => res.json()).then(() => {
                 this.accessToken = '';
                 this.savedAccessTokenDesc = '';
                 CommonEventDispatcher.dispatch(CustomEventNames.OJM_DRONE_LOCAL__ACCESS_TOKEN_INPUT_STATE_CHANGED);

@@ -15,15 +15,11 @@ export default class MainControlModel {
     }
 
     async generateKey(): Promise<void> {
-        await getCgi('/generateKey')
+        await getCgi('/generateKey', 'Can not generate key. Remote server may fail to authorize me or be unavailable.')
             .then(res => res.json())
             .then(ret => {
                 this.setStartKeyWithEvent(ret.startKey);
-            })
-            .catch(e => {
-                console.error(e);
-                alert('Can not generate key. Remote server may fail to authorize me or be unavailable.');
-            });
+            }).catch(console.error);
     }
 
     setStartKeyNoEvent(startKey: string): void {
@@ -42,20 +38,13 @@ export default class MainControlModel {
     async startApp(): Promise<void> {
         const startKey = this.startKey;
 
-        await postJsonCgi('/startApp', JSON.stringify({ startKey }))
-            .then(res => {
-                if (res.ok) {
-                    return res.json();
-                }
-                throw new Error('Request does not success.');
-            })
+        await postJsonCgi('/startApp', JSON.stringify({ startKey }), 'Can not start signaling. Remote server may fail to validate the code or be unavailable.')
+            .then(res => res.json())
             .then(() => {
                 this.viewStateModel.toReady();
-
             })
             .catch(e => {
                 console.error(e);
-                alert('Can not start signaling. Remote server may fail to validate the code or be unavailable.');
                 this.viewStateModel.toInit();
             });
     }
@@ -65,12 +54,8 @@ export default class MainControlModel {
         msg += ' If you terminate the application, the video streaming stops and drone lands (if it has already taken off).';
 
         if (confirm(msg)) {
-            await postJsonCgi('/stopApp').then(res => {
-                if (res.ok) {
-                    this.viewStateModel.toInit();
-                    return;
-                }
-                throw new Error('Request does not success.');
+            await postJsonCgi('/stopApp').then(() => {
+                this.viewStateModel.toInit();
             });
         }
 
@@ -78,11 +63,11 @@ export default class MainControlModel {
 
     async takeoff(): Promise<void> {
         this.viewStateModel.toTakeOff();
-        await postJsonCgi('/takeoff').then(res => res.json());
+        await postJsonCgi('/takeoff');
     }
 
     async land(): Promise<void> {
         this.viewStateModel.toLand();
-        await postJsonCgi('/land').then(res => res.json());
+        await postJsonCgi('/land');
     }
 }
