@@ -1,6 +1,7 @@
 import { CommonEventDispatcher } from 'client-js-lib';
 import { CustomEventNames } from './CustomEventNames';
 
+import Messages from './Messages';
 import TabModel from './TabModel';
 import MainControlModel from './MainControlModel';
 import SetupModel from './SetupModel';
@@ -216,10 +217,10 @@ export default class ApplicationStatesModel {
             this.retryCount++;
             if (STATE_CONNECTION_MAX_RETRY < this.retryCount) {
                 this.stopRetrying();
-                this.setModalMessage('Can not start application. Remote server may be unavailable.');        
+                this.setModalMessage(Messages.err.ApplicationStatesModel_001);        
                 return;
             }
-            this.setModalMessage('Trying to establish a connection to the server...');
+            this.setModalMessage(Messages.msg.ApplicationStatesModel_001);
             this.initStatesClient(false);
             this.retry();
         }, STATE_CONNECTION_RETRY_INTERVAL_MILLIS);
@@ -249,7 +250,7 @@ export default class ApplicationStatesModel {
         if (this.sessionKey !== currentSessionKey) {
             this.applicationState = ApplicationState.Terminated;
             this.stopRetrying();
-            alert('The server has restarted. You have to reload the page.');
+            alert(Messages.msg.ApplicationStatesModel_002);
             location.href = '/';
         }
     }

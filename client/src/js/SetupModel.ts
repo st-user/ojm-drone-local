@@ -1,6 +1,7 @@
 import { CommonEventDispatcher } from 'client-js-lib';
 import { CustomEventNames } from './CustomEventNames';
 import { postJsonCgi, deleteCgi } from './Auth';
+import Messages from './Messages';
 
 export default class SetupModel {
  
@@ -15,11 +16,11 @@ export default class SetupModel {
 
     async update(): Promise<void> {
         if (this.getSavedAccessTokenDesc()) {
-            if (!confirm('Are you sure you want to update the existing access token?')) {
+            if (!confirm(Messages.msg.SetupModel_001)) {
                 return;
             }
         }
-        const errorMsg = 'Failed to update access token. The input token may be invalid.';
+        const errorMsg = Messages.err.SetupModel_001;
         await postJsonCgi('/updateAccessToken', JSON.stringify({ 'accessToken': this.accessToken }), errorMsg)
             .then(res => res.json())
             .then(ret => {
@@ -33,7 +34,7 @@ export default class SetupModel {
     }
 
     async delete(): Promise<void> {
-        if (confirm('Are you sure you want to delete the existing access token?')) {
+        if (confirm(Messages.msg.SetupModel_002)) {
             await deleteCgi('/deleteAccessToken').then(res => res.json()).then(() => {
                 this.accessToken = '';
                 this.savedAccessTokenDesc = '';

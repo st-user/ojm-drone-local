@@ -1,12 +1,14 @@
 import { DOM } from 'client-js-lib';
 
+import Messages from './Messages';
+
 const SESSION_KEY_HTTP_HEADER_KEY = 'x-ojm-drone-local-session-key';
 const SESSION_KEY_HTTP_HEADER_VALUE = (DOM.query('#sessionKey') as HTMLInputElement).value;
 
 function checkResponse(errorMsg?: string): (res: Response) => Response {
     return function(res: Response) {
         if (!res.ok) {
-            const _msg = errorMsg || 'The appllication failed to complete the process. Please check whether the application is running.';
+            const _msg = errorMsg || Messages.err.Common_001;
             alert(_msg);
             throw new Error('Status code is not 200');
         }

@@ -1,4 +1,6 @@
 import { DOM } from 'client-js-lib';
+
+import Messages from './Messages';
 import ApplicationStatesModel from './ApplicationStatesModel';
 import HeaderModel from './HeaderModel';
 import ModalModel from './ModalModel';
@@ -24,10 +26,11 @@ export default class HeaderView {
         DOM.click(this.$terminate, async event => {
             event.preventDefault();          
                         
-            this.applicationStatesModel.setTerminated();
-            this.modalModel.setMessage('The application has been terminated.');
-
-            await this.headerModel.terminate();
+            const confirmed = await this.headerModel.terminate();
+            if (confirmed) {
+                this.applicationStatesModel.setTerminated();
+                this.modalModel.setMessage(Messages.msg.HeaderView_001);   
+            }
 
         });
     }

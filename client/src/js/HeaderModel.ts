@@ -1,15 +1,13 @@
 import { postJsonCgi } from './Auth';
+import Messages from './Messages';
 
 export default class HeaderModel {
     
-    async terminate(): Promise<void> {
-
-        let msg = 'Are you sure you want to terminate the application?';
-        msg += ' If you terminate the application, the drone lands (if it has already taken off) and the server stops.';
-        msg += ' In order to restart the application, you have to run the server (double click the exe file) manually.';
-
-        if (confirm(msg)) {
+    async terminate(): Promise<boolean> {
+        if (confirm(Messages.msg.HeaderModel_001)) {
             await postJsonCgi('/terminate');
+            return true;
         }
+        return false;
     }
 }

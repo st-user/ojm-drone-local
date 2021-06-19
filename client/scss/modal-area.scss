@@ -1,9 +1,9 @@
 .-modal-area {
     &__dialog {
         display: block;
-        height: 120px;
         line-height: 1;
         margin: auto;
+        max-height: 240px;
         max-width: 360px;
         text-align: center;
     }

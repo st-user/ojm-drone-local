@@ -1,5 +1,7 @@
 import { CommonEventDispatcher } from 'client-js-lib';
+
 import { getCgi, postJsonCgi } from './Auth';
+import Messages from './Messages';
 import { CustomEventNames } from './CustomEventNames';
 import ViewStateModel from './ViewStateModel';
 
@@ -15,7 +17,7 @@ export default class MainControlModel {
     }
 
     async generateKey(): Promise<void> {
-        await getCgi('/generateKey', 'Can not generate key. Remote server may fail to authorize me or be unavailable.')
+        await getCgi('/generateKey', Messages.err.MainControlModel_001)
             .then(res => res.json())
             .then(ret => {
                 this.setStartKeyWithEvent(ret.startKey);
@@ -38,7 +40,7 @@ export default class MainControlModel {
     async startApp(): Promise<void> {
         const startKey = this.startKey;
 
-        await postJsonCgi('/startApp', JSON.stringify({ startKey }), 'Can not start signaling. Remote server may fail to validate the code or be unavailable.')
+        await postJsonCgi('/startApp', JSON.stringify({ startKey }), Messages.err.MainControlModel_002)
             .then(res => res.json())
             .then(() => {
                 this.viewStateModel.toReady();
@@ -50,10 +52,7 @@ export default class MainControlModel {
     }
 
     async stopApp(): Promise<void> {
-        let msg = 'Are you sure you want to stop the application?';
-        msg += ' If you terminate the application, the video streaming stops and drone lands (if it has already taken off).';
-
-        if (confirm(msg)) {
+        if (confirm(Messages.msg.MainControlModel_001)) {
             await postJsonCgi('/stopApp').then(() => {
                 this.viewStateModel.toInit();
             });
