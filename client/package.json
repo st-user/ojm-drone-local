@@ -8,6 +8,7 @@
     "build": "node-sass scss --output scss-dest --output-style compressed && node-sass base-scss --output scss-dest --output-style compressed && webpack --config webpack.prod.js && node ./build-util/bu.js",
     "build:test": "webpack --config webpack.dev.js",
     "build:watch": "webpack --config webpack.dev.js --watch",
+    "build:css-watch": "npm run build-css -- --watch",
     "license-gen": "webpack --config webpack.license-gen.js",
     "start": "webpack serve --config webpack.dev.js",
     "lint:js-one": "eslint",
@@ -28,16 +29,16 @@
   },
   "homepage": "https://github.com/st-user/ojm-drone-local#readme",
   "dependencies": {
-    "client-js-lib": "file:../../ojm-drone-client-js-lib",
-    "vanilla-framework": "^2.31.0"
+    "client-js-lib": "file:../../ojm-drone-client-js-lib"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^4.27.0",
     "@typescript-eslint/parser": "^4.27.0",
+    "bulma": "^0.9.3",
     "clean-webpack-plugin": "^3.0.0",
     "copy-webpack-plugin": "^9.0.0",
     "css-loader": "^5.2.6",
-    "eslint": "^7.28.0",
+    "eslint": "^7.29.0",
     "htmlhint": "^0.15.1",
     "node-sass": "^6.0.0",
     "style-loader": "^2.0.0",
@@ -46,8 +47,8 @@
     "stylelint-config-standard": "^22.0.0",
     "stylelint-no-unsupported-browser-features": "^5.0.1",
     "ts-loader": "^9.2.3",
-    "typescript": "^4.3.2",
-    "webpack": "^5.39.0",
+    "typescript": "^4.3.4",
+    "webpack": "^5.39.1",
     "webpack-cli": "^4.7.2",
     "webpack-license-plugin": "^4.1.2",
     "webpack-merge": "^5.8.0"

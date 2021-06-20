@@ -6,13 +6,13 @@ export default class TabView {
 
     private readonly tabModel: TabModel;
 
-    private readonly $setup: HTMLLinkElement;
-    private readonly $run: HTMLLinkElement;
+    private readonly $setup: HTMLLIElement;
+    private readonly $run: HTMLLIElement;
 
     constructor(tabModel: TabModel) {
         this.tabModel = tabModel;
-        this.$setup = DOM.query('#setupTab a')!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
-        this.$run = DOM.query('#runTab a')!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
+        this.$setup = DOM.query('#setupTab')!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
+        this.$run = DOM.query('#runTab')!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
     }
 
 
@@ -36,7 +36,14 @@ export default class TabView {
     }
 
     private render(): void {
-        this.$setup.setAttribute('aria-selected', String(this.tabModel.isSetupSelected()));
-        this.$run.setAttribute('aria-selected', String(this.tabModel.isRunSelected()));
+        this.toggleActive(this.$setup, this.tabModel.isSetupSelected());
+        this.toggleActive(this.$run, this.tabModel.isRunSelected());
+    }
+
+    private toggleActive($tab: HTMLLIElement, isActive: boolean) {
+        $tab.classList.remove('is-active');
+        if (isActive) {
+            $tab.classList.add('is-active');
+        }        
     }
 }

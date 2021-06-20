@@ -15,7 +15,7 @@ module.exports = merge(common, {
             excludedPackageTest: () => {
                 return false;
             },
-            outputFilename: './dist/oss-licenses.json'
+            outputFilename: '../dist/oss-licenses.json'
         })
     ]
 });

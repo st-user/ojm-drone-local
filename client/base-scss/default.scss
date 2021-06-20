@@ -1,11 +1,5 @@
-@import 'node_modules/vanilla-framework/scss/vanilla';
-
-@include vf-base;
-@include vf-p-heading-icon;
-@include vf-p-buttons;
-@include vf-p-card;
-@include vf-p-tabs;
-@include vf-p-modal;
+@charset 'utf-8';
+@import '../node_modules/bulma/bulma.sass';
 
 ul {
     list-style: none;

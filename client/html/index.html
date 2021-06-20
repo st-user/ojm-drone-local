@@ -2,33 +2,37 @@
     <head>
         <meta charset="UTF-8">
         <title>OJM-Drone</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <script src="./js/style.js?q=!_____APP_VERSION_____!"></script>
     </head>
     <body class="global">
 
         <input type="hidden" id="accessKey" name="accessKey" value="{{ .AccessKey }}"/>
 
-        <header class="header">
-            <div class="p-heading-icon">
-                <div class="p-heading-icon__header">
-                    <img class="p-heading-icon__img" src="logo.png?q=!_____APP_VERSION_____!" alt="">
-                    <h3 class="p-heading-icon__title">OJM-Drone</h3>
-                </div>
+        <header class="header mb-5">
+            <div class="header__img-container clearfixContainer">
+
+                <figure class="image is-48x48 header__img">
+                    <img src="logo.png?q=!_____APP_VERSION_____!" alt="OJM-Drone">
+                </figure>
+                
+                <h1 class="header__title title">OJM-Drone</h1>
+
             </div>
             <div class="header__terminate">
-                <button type="button" id="terminate" class="p-button--negative">terminate</button>
+                <button type="button" id="terminate" class="button is-danger">terminate</button>
             </div>
         </header>
 
         <div class="contents">
 
-            <div class="p-tabs">
-                <ul class="p-tabs__list">
-                    <li id="setupTab" class="p-tabs__item">
-                        <a href="#" class="p-tabs__link">set up</a>
+            <div class="tabs">
+                <ul>
+                    <li id="setupTab">
+                        <a href="#">set up</a>
                     </li>
-                    <li id="runTab" class="p-tabs__item">
-                        <a href="#" class="p-tabs__link">run</a>
+                    <li id="runTab">
+                        <a href="#">run</a>
                     </li>
                 </ul>
             </div>
@@ -40,8 +44,8 @@
 
                     <div class="setup-area__item">
                         <div class="setup-area__title">Access Token</div>
-                        <div>
-                            <input type="password" name="accessToken" id="accessToken" placeholder="Your access token."/>
+                        <div class="mb-3">
+                            <input type="password" name="accessToken" id="accessToken" class="input is-normal" placeholder="Your access token."/>
                         </div>
                         <div class="setup-area__saved-access-token">
                             <span class="setup-area__saved-access-token-title">
@@ -51,8 +55,8 @@
                             </span>
                         </div>
                         <div class="setup-area__confirmation">
-                            <button type="button" id="updateAccessToken" class="p-button--neutral">update</button>
-                            <button type="button" id="deleteAccessToken" class="p-button--neutral">delete</button>
+                            <button type="button" id="updateAccessToken" class="button">update</button>
+                            <button type="button" id="deleteAccessToken" class="button">delete</button>
                         </div>
                     </div>
 
@@ -62,9 +66,13 @@
 
                     <div class="run-area__card-area clearfixContainer">
                         <div class="run-area__card-wrapper">
-                            <div class="p-card">
-                                <h3 class="p-card__title">Drone's status</h3>
-                                <div class="p-card__content">
+                            <div class="card">
+
+                                <header class="card-header">
+                                    <p class="card-header-title">Drone's status</p>
+                                </header>
+
+                                <div class="card-content">
                                     <div>
                                         <span class="run-area__drone-status-title">connection:</span>
                                         <span id="droneConnection" class="run-area__drone-status-value"></span>
@@ -80,23 +88,23 @@
 
                     <div class="run-area__start-control-area">
                         <div class="run-area__start-control-title">Start Code</div>
-                        <div>
-                            <input type="text" name="startKey" id="startKey" class="start-key" value="" placeholder="Please input a 'Start Key' or generate."/>
+                        <div class="mb-3">
+                            <input type="text" name="startKey" id="startKey" class="input is-normal" value="" placeholder="Please input a 'Start Key' or generate."/>
                         </div>
                         <div class="run-area__start-control-exe">
-                            <button type="button" id="start" class="p-button--neutral">START</button>
-                            <button type="button" id="stop" class="p-button--neutral">STOP</button>
-                            <button type="button" id="generateKey" class="p-button--neutral">Generate</button>
+                            <button type="button" id="start" class="button">START</button>
+                            <button type="button" id="stop" class="button">STOP</button>
+                            <button type="button" id="generateKey" class="button">Generate</button>
                         </div>
                     </div>
                        
                     <div class="run-area__drone-control-area">
                         <ul class="run-area__drone-control">
                             <li class="run-area__drone-command">
-                                <button type="button" id="takeoff" class="p-button--neutral -run-area__drone-ctrl-button">Takeoff</button>
+                                <button type="button" id="takeoff" class="button -run-area__drone-ctrl-button">Takeoff</button>
                             </li>
                             <li class="run-area__drone-command">
-                                <button type="button" id="land" class="p-button--neutral -run-area__drone-ctrl-button">Land</button>
+                                <button type="button" id="land" class="button -run-area__drone-ctrl-button">Land</button>
                             </li>
                         </ul>
                     </div>
@@ -107,25 +115,34 @@
         </div>
 
         <div class="modal-area">
-            <div class="p-modal" id="modal">
-                <section id="" class="p-modal__dialog -modal-area__dialog" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-description">
-                    <p id="modalDescription">
-                    </p>
-                </section>
+            <div class="modal" id="modal">
+
+                <div class="modal-background"></div>
+                <div class="modal-card">
+
+                    <section class="modal-card-body" id="modalDescription">
+                    </section>
+
+                </div>
+
             </div>
 
-            <div class="p-modal" id="welcomeModal">
-                <section class="p-modal__dialog -modal-area__dialog" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-description">
-                    <header class="p-modal__header">
-                        <h2 class="p-modal__title">Welcome to OJM-Drone!</h2>
+            <div class="modal" id="welcomeModal">
+
+                <div class="modal-background"></div>
+                <div class="modal-card">
+
+                    <header class="modal-card-head">
+                        <p class="modal-card-title">Welcome to OJM-Drone!</p>
                     </header>
 
-                    <p id="welcomeModalMessage"></p>
+                    <section class="modal-card-body" id="welcomeModalMessage"></section>
 
-                    <footer class="p-modal__footer">
-                        <button class="u-no-margin--bottom" aria-controls="modal" id="welcomeModalContinue">continue</button>
+                    <footer class="modal-card-foot">
+                        <button class="button" id="welcomeModalContinue">continue</button>
                     </footer>
-                </section>
+
+                </div>
               </div>
         </div>
 
