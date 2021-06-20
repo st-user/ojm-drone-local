@@ -69,9 +69,9 @@ func newLogger() {
 			log.Fatalf("Invalid log level: %v", levelStr)
 		}
 
-		deleteFiles()
 		prepare()
 		writer := createWriter()
+		deleteFiles()
 
 		logger = &Logger{
 			level: levelInt,

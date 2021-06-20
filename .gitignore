@@ -6,3 +6,4 @@ client/dist-discard/
 client/scss-dest
 .DS_Store
 log
+build/work
