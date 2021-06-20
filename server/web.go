@@ -38,8 +38,8 @@ type Statics struct {
 	dir string
 }
 
-type sessionKeyData struct {
-	SessionKey string
+type accessKeyData struct {
+	AccessKey string
 }
 
 func NewStatics(sessionKey string) Statics {
@@ -83,15 +83,14 @@ func (s *Statics) HandleStatic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if filename == "index.html" {
-		applicationStates.ChangeSessionKey()
 		t, err := template.ParseFiles(path)
 		if err != nil {
 			applog.Warn(err.Error())
 			w.WriteHeader(500)
 			return
 		}
-		t.Execute(w, &sessionKeyData{
-			SessionKey: applicationStates.GetSessionKey(),
+		t.Execute(w, &accessKeyData{
+			AccessKey: applicationStates.AccessKey,
 		})
 	} else {
 		_body, err := ioutil.ReadFile(path)

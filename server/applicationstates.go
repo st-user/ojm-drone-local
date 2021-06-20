@@ -36,6 +36,7 @@ type ApplicationStates struct {
 	droneState       atomic.Value
 	sessionKey       atomic.Value
 	StartStopMux     sync.Mutex
+	AccessKey        string
 }
 
 type DroneHealths struct {
@@ -55,6 +56,12 @@ func NewApplicationStates() *ApplicationStates {
 	})
 	a.SetDroneState(DRONE_STATE_INIT)
 	a.ChangeSessionKey()
+
+	key, err := uuid.NewRandom()
+	if err != nil {
+		panic(err)
+	}
+	a.AccessKey = key.String()
 
 	return a
 }

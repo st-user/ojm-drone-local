@@ -7,6 +7,7 @@ let Messages = {
         HeaderModel_001: 'Are you sure you want to terminate the application?' + ' If you terminate the application, the drone lands (if it has already taken off) and the application entirely stops.',
         HeaderView_001: 'The application has been terminated.' + howToRestart,
         MainControlModel_001: 'Are you sure you want to stop the application?' + ' If you terminate the application, the video streaming stops and drone lands (if it has already taken off).',
+        ModalModel_001: 'To start using the application, please click the \'continue\' button below.',
         SetupModel_001: 'Are you sure you want to update the existing access token?',
         SetupModel_002: 'Are you sure you want to delete the existing access token?',
     },
@@ -15,6 +16,7 @@ let Messages = {
         ApplicationStatesModel_001: 'The application is unavailable.' + 'If it has already stopped, you need to restart it.' + howToRestart,
         MainControlModel_001: 'Can not generate a start key. The signaling server failed to authorize this application or is unavailable.',
         MainControlModel_002: 'Can not start signaling. The signaling server failed to validate the input start key or is unavailable.',
+        ModalModel_001: 'The application failed to start. Please check it is running without errors.',
         SetupModel_001: 'The application failed to update the existing access token. The input access token may be invalid.',
     }
 };
@@ -30,6 +32,7 @@ if (/^ja\b/.test(navigator.language)) {
             HeaderModel_001: 'アプリケーションを終了してもよろしいですか？' + ' アプリケーションを終了すると、ドローンが着陸し（すでに離陸している場合）、アプリケーションは完全に停止します。',
             HeaderView_001: 'アプリケーションは終了しました。' + howToRestart_ja,
             MainControlModel_001: 'アプリケーションを停止してもよろしいですか？' + ' アプリケーションを終了すると、ビデオストリーミングが停止し、ドローンが着陸します（すでに離陸している場合）。',
+            ModalModel_001: 'アプリケーションの使用を開始するには、下の[continue]ボタンをクリックしてください。',
             SetupModel_001: '既存のアクセストークンを更新してもよろしいですか？',
             SetupModel_002: '既存のアクセストークンを削除してもよろしいですか？',
         },
@@ -38,6 +41,7 @@ if (/^ja\b/.test(navigator.language)) {
             ApplicationStatesModel_001: 'アプリケーションは利用できません。' + 'すでに停止している場合は、再起動する必要があります。' + howToRestart_ja,
             MainControlModel_001: 'スタートキーを生成できません。シグナリングサーバーがこのアプリケーションの承認に失敗したか、使用できません。',
             MainControlModel_002: 'シグナリングを開始できません。シグナリングサーバーがスタートキーの検証に失敗したか、使用できません。',
+            ModalModel_001: 'アプリケーションを起動できませんでした。エラーなしで実行されていることを確認してください。',
             SetupModel_001: 'アプリケーションは既存のアクセストークンの更新に失敗しました。入力されたアクセストークンが無効である可能性があります。',
         }
     };

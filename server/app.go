@@ -478,6 +478,23 @@ func terminate(w http.ResponseWriter, r *http.Request) (*map[string]interface{},
 	return &responseBody, nil
 }
 
+func startUsingApplication(w http.ResponseWriter, r *http.Request) {
+	incomingAccessKey := r.Header.Get("x-ojm-drone-local-access-key")
+
+	if incomingAccessKey != applicationStates.AccessKey {
+		w.WriteHeader(http.StatusForbidden)
+		w.Write([]byte("Invalid access key"))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	applicationStates.ChangeSessionKey()
+	json.NewEncoder(w).Encode(map[string]string{
+		"sessionKey": applicationStates.GetSessionKey(),
+	})
+}
+
 func checkSessionKeyMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -514,6 +531,7 @@ func routes() {
 	rootRouter := mux.NewRouter()
 	cgiRouter := rootRouter.PathPrefix("/cgi").Subrouter()
 	cgiRouter.Use(checkSessionKeyMiddleware)
+	dmzRouter := rootRouter.PathPrefix("/dmz").Subrouter()
 	staticRouter := rootRouter.PathPrefix("/").Subrouter()
 
 	HandleFuncJSON(cgiRouter, "/checkApplicationStates", checkApplicationStates).Methods(http.MethodGet)
@@ -526,6 +544,8 @@ func routes() {
 	HandleFuncJSON(cgiRouter, "/land", land).Methods(http.MethodPost)
 	HandleFuncJSON(cgiRouter, "/terminate", terminate).Methods(http.MethodPost)
 	cgiRouter.HandleFunc("/state", state)
+
+	dmzRouter.HandleFunc("/startUsingApplication", startUsingApplication).Methods(http.MethodGet)
 
 	statics := NewStatics(applicationStates.GetSessionKey())
 	staticRouter.PathPrefix("/").HandlerFunc(statics.HandleStatic)

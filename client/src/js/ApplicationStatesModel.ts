@@ -97,7 +97,6 @@ export default class ApplicationStatesModel {
     private readonly mainControlModel: MainControlModel;
     private readonly modalModel: ModalModel;
 
-    private readonly sessionKey: string;
     private applicationState: ApplicationState;
     private readonly droneHealth: DroneHealth;
 
@@ -119,7 +118,6 @@ export default class ApplicationStatesModel {
         this.mainControlModel = mainControlModel;
         this.modalModel = modalModel;
 
-        this.sessionKey = SESSION_KEY_HTTP_HEADER_VALUE;
         this.applicationState = ApplicationState.Init;
         this.droneHealth = new DroneHealth();
 
@@ -129,24 +127,33 @@ export default class ApplicationStatesModel {
     }
 
     async init(): Promise<void> {
+        return new Promise<void>(reslove => {
+            CommonEventDispatcher.on(CustomEventNames.OJM_DRONE_LOCAL__SESSION_KEY_AUTHORIZED_ACCESS_ENABLED, async () => {
 
-        const statesResp: StatesResp = await getCgi('/checkApplicationStates')
-            .then(res => res.json());
+                const statesResp: StatesResp = await getCgi('/checkApplicationStates')
+                    .then(res => res.json());
+    
+                this.applicationState = statesResp.applicationState;
+                this.setupModel.setSavedAccessTokenDesc(statesResp.accessTokenDesc);
+                this.mainControlModel.setStartKeyWithEvent(statesResp.startKey);
+            
+                if (this.setupModel.getSavedAccessTokenDesc()) {
+                    this.tabModel.run();
+                }
+    
+                this.initStatesClient(true);
 
-        this.applicationState = statesResp.applicationState;
-        this.setupModel.setSavedAccessTokenDesc(statesResp.accessTokenDesc);
-        this.mainControlModel.setStartKeyWithEvent(statesResp.startKey);
-        
-        if (this.setupModel.getSavedAccessTokenDesc()) {
-            this.tabModel.run();
-        }
 
-        this.initStatesClient(true);
+                reslove();
+            });
+        });
+
+
     }
 
     private initStatesClient(startAppOnOpen: boolean): void {
         const wsProtocol = 0 <= location.protocol.indexOf('https') ? 'wss' : 'ws';
-        this.websocket = new WebSocket(`${wsProtocol}://${location.host}/cgi/state?sessionKey=${SESSION_KEY_HTTP_HEADER_VALUE}`);
+        this.websocket = new WebSocket(`${wsProtocol}://${location.host}/cgi/state?sessionKey=${SESSION_KEY_HTTP_HEADER_VALUE.get()}`);
         this.websocket.onmessage = (event: MessageEvent) => {
 
             if (this.applicationState === ApplicationState.Terminated) {
@@ -163,7 +170,7 @@ export default class ApplicationStatesModel {
 
             case 'appInfo':
 
-                if (this.sessionKey !== dataJson.sessionKey) {
+                if (SESSION_KEY_HTTP_HEADER_VALUE.get() !== dataJson.sessionKey) {
                     this.setModalMessage(Messages.msg.ApplicationStatesModel_003);
                     this.stopRetrying();
                     this.setTerminated();
@@ -269,7 +276,7 @@ export default class ApplicationStatesModel {
 
     
     private detectServerStopping(currentSessionKey: string): void {
-        if (this.sessionKey !== currentSessionKey) {
+        if (SESSION_KEY_HTTP_HEADER_VALUE.get() !== currentSessionKey) {
             this.applicationState = ApplicationState.Terminated;
             this.stopRetrying();
             alert(Messages.msg.ApplicationStatesModel_002);
