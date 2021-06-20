@@ -5,10 +5,9 @@
   "main": "index.ts",
   "scripts": {
     "clean": "rm -Rf ./dist && rm -Rf dist-discard && rm -Rf scss-dest",
-    "build": "node-sass scss --output scss-dest --output-style compressed && node-sass base-scss --output scss-dest --output-style compressed && webpack --config webpack.prod.js && node ./build-util/bu.js",
+    "build": "node-sass scss --omit-source-map-url --output scss-dest --output-style compressed && node-sass base-scss --output scss-dest --output-style compressed && webpack --config webpack.prod.js && node ./build-util/bu.js",
     "build:test": "webpack --config webpack.dev.js",
     "build:watch": "webpack --config webpack.dev.js --watch",
-    "build:css-watch": "npm run build-css -- --watch",
     "license-gen": "webpack --config webpack.license-gen.js",
     "start": "webpack serve --config webpack.dev.js",
     "lint:js-one": "eslint",

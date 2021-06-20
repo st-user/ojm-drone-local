@@ -1,6 +1,7 @@
 .run-area {  
     &__card-area {
-        width: 85%;
+        margin: auto;
+        max-width: 540px;
     }
 
     &__card-wrapper {
