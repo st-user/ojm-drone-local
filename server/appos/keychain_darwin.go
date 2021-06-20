@@ -5,7 +5,6 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/danieljoos/wincred"
 	"github.com/keybase/go-keychain"
 )
 
@@ -24,19 +23,10 @@ type MacOSKeyChainManager struct {
 	label   string
 }
 
-type WindowsKeyChainManager struct {
-	targetName string
-}
-
 func NewKeyChainManager() (KeyChainManager, error) {
 	runtimeOs := runtime.GOOS
 
 	switch runtimeOs {
-	case "windows":
-		return &WindowsKeyChainManager{
-			targetName: "com.ajizablg.ojm-drone/access-token",
-		}, nil
-
 	case "darwin":
 		return &MacOSKeyChainManager{
 			service: "com.ajizablg.ojm-drone/access-token",
@@ -44,6 +34,8 @@ func NewKeyChainManager() (KeyChainManager, error) {
 			account: os.Getenv("USER"),
 			label:   "OJM-Drone Access Token",
 		}, nil
+	case "windows":
+		fallthrough
 	case "linux":
 		fallthrough
 	default:
@@ -58,19 +50,6 @@ func (km *MacOSKeyChainManager) SetToken(token string) error {
 	item.SetSynchronizable(keychain.SynchronizableNo)
 	item.SetAccessible(keychain.AccessibleAfterFirstUnlockThisDeviceOnly)
 	err := keychain.AddItem(item)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (km *WindowsKeyChainManager) SetToken(token string) error {
-
-	cred := wincred.NewGenericCredential(km.targetName)
-	cred.CredentialBlob = []byte(token)
-	err := cred.Write()
 
 	if err != nil {
 		return err
@@ -104,18 +83,6 @@ func (km *MacOSKeyChainManager) UpdateToken(token string) (string, string, error
 	return token, desc, err
 }
 
-func (km *WindowsKeyChainManager) UpdateToken(token string) (string, string, error) {
-
-	desc := makeTokenDesc(token)
-	err := km.SetToken(token)
-
-	if err != nil {
-		return token, desc, err
-	}
-
-	return token, desc, err
-}
-
 func (km *MacOSKeyChainManager) GetToken() (string, error) {
 
 	token, err := keychain.GetGenericPassword(km.service, km.account, km.label, km.group)
@@ -126,27 +93,7 @@ func (km *MacOSKeyChainManager) GetToken() (string, error) {
 	return string(token), nil
 }
 
-func (km *WindowsKeyChainManager) GetToken() (string, error) {
-
-	cred, err := wincred.GetGenericCredential(km.targetName)
-	if err != nil {
-		return "", nil
-	}
-
-	return string(cred.CredentialBlob), nil
-}
-
 func (km *MacOSKeyChainManager) GetTokenAndDesc() (string, string, error) {
-
-	token, err := km.GetToken()
-	if err != nil {
-		return "", "", err
-	}
-
-	return token, makeTokenDesc(token), nil
-}
-
-func (km *WindowsKeyChainManager) GetTokenAndDesc() (string, string, error) {
 
 	token, err := km.GetToken()
 	if err != nil {
@@ -166,22 +113,6 @@ func (km *MacOSKeyChainManager) DeleteToken() error {
 	item.SetLabel(km.label)
 	err := keychain.DeleteItem(item)
 
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (km *WindowsKeyChainManager) DeleteToken() error {
-
-	cred, err := wincred.GetGenericCredential(km.targetName)
-	if err != nil {
-		return err
-
-	}
-
-	err = cred.Delete()
 	if err != nil {
 		return err
 	}
