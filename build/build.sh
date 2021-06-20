@@ -42,4 +42,5 @@ echo $BULMA_LCS_URL > work/$TEMP/LICENSES/static/bulma-license-url.txt
 
 cp README.txt ./work/$TEMP/
 
-env GOOS=$GOOS GOARCH=$GOARCH TEMP=$TEMP node make-directory.js
+cd work
+env GOOS=$GOOS GOARCH=$GOARCH TEMP=$TEMP node ../make-directory.js
