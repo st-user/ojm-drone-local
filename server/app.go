@@ -564,7 +564,10 @@ func main() {
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt)
 
+	fmt.Println("If you want to stop the application, press 'ctrl+c' and start stopping.")
+
 	<-signalChan
+
 	fmt.Println("Are you sure you want to stop the application? If so, press 'ctrl+c' twice.")
 	<-signalChan
 	<-signalChan
