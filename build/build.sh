@@ -7,6 +7,7 @@ MY_GOPATH=`go env GOPATH`
 echo $MY_GOPATH
 echo $GOOS
 echo $GOARCH
+echo $BIN_SUFFIX
 
 cd ../client
 npm run clean
@@ -24,7 +25,7 @@ mkdir work/$TEMP/static
 
 cp ../.env work/$TEMP/
 cp -R ../client/dist/* work/$TEMP/static/
-mv ../server/tempbinary work/$TEMP/ojm-drone
+mv ../server/tempbinary work/$TEMP/ojm-drone$BIN_SUFFIX
 
 ## LICENSES
 
