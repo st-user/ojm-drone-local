@@ -124,57 +124,17 @@ export default class MainControlView {
 
         this.$startKey.value = this.mainControlModel.getStartKey();
 
-        if (this.viewStateModel.isInit()) {
-            this.$startKey.disabled = false;
-            this.$stop.disabled = true;
-            this.enableStartButtons();
-            this.disableControlButtons();
-        }
+        this.$startKey.disabled = !this.mainControlModel.canInputStartKey();
+        this.$start.disabled = !this.mainControlModel.canStart();
+        this.$stop.disabled = !this.mainControlModel.canStop();
+        this.$generateKey.disabled = !this.mainControlModel.canGenerate();
+        this.$takeoff.disabled = !this.mainControlModel.canTakeOff();
+        this.$land.disabled = !this.mainControlModel.canLand();
 
-        if (this.viewStateModel.isReady()) {
-            this.$startKey.disabled = true;
-            this.$stop.disabled = false;
-            this.disableStartButtons();
-            this.disableControlButtons();
-        }
-
-        if (this.viewStateModel.isLand()) {
-            this.$startKey.disabled = true;
-            this.$stop.disabled = false;
-            this.disableStartButtons();
-            this.enableControlButtons();
-        }
-
-        if (this.viewStateModel.isTakeOff()) {
-            this.$startKey.disabled = true;
-            this.$stop.disabled = false;
-            this.disableStartButtons();
-            this.enableControlButtons();
-        }
     }
 
     private display(): void {
         DOM.display(this.$runArea, this.tabModel.isRunSelected());
-    }
-
-    private disableStartButtons(): void {
-        this.$start.disabled = true;
-        this.$generateKey.disabled = true;
-    }
-
-    private enableStartButtons(): void {
-        this.$start.disabled = !this.mainControlModel.getStartKey();
-        this.$generateKey.disabled = false;
-    }
-
-    private disableControlButtons(): void {
-        this.$takeoff.disabled = true;
-        this.$land.disabled = true;
-    }
-
-    private enableControlButtons(): void {
-        this.$takeoff.disabled = false;
-        this.$land.disabled = false;
     }
 
     private droneHealth(): void {

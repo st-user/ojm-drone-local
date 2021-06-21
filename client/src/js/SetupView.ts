@@ -16,7 +16,6 @@ export default class SetupView {
     private readonly $updateAccessToken: HTMLButtonElement;
     private readonly $deleteAccessToken: HTMLButtonElement;
 
-
     constructor(tabModel: TabModel, setupModel: SetupModel) {
 
         this.tabModel = tabModel;

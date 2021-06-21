@@ -10,6 +10,7 @@ import ViewStateModel from './ViewStateModel';
 import ModalModel from './ModalModel';
 
 import { SESSION_KEY_HTTP_HEADER_VALUE, getCgi } from './AuthorizedAccess';
+import ProgressModel from './ProgressModel';
 
 const DRONE_HEALTH_DESCS = ['-', 'OK', 'NG'];
 
@@ -90,7 +91,8 @@ class DroneHealth {
 export { DroneHealthState, BatteryLevelWarningState };
 
 export default class ApplicationStatesModel {
-     
+    
+    private readonly progressModel: ProgressModel;
     private readonly viewStateModel: ViewStateModel;
     private readonly tabModel: TabModel;
     private readonly setupModel: SetupModel
@@ -106,12 +108,14 @@ export default class ApplicationStatesModel {
     private retryCount: number;
 
     constructor(
+        progressModel: ProgressModel,
         viewStateModel: ViewStateModel, 
         tabModel: TabModel, 
         setupModel: SetupModel, 
         mainControlModel: MainControlModel, 
         modalModel: ModalModel
     ) {
+        this.progressModel = progressModel;
         this.viewStateModel = viewStateModel;
         this.tabModel = tabModel;
         this.setupModel = setupModel;
@@ -177,6 +181,7 @@ export default class ApplicationStatesModel {
                     if (this.websocket) {
                         this.websocket.close();
                     }
+                    this.progressModel.endProcessing();
                     return;
                 }
 
@@ -186,6 +191,8 @@ export default class ApplicationStatesModel {
                     this.droneHealth.setData(
                         DroneHealthState.Unknown, BatteryLevelWarningState.Unknown
                     );
+
+                    this.progressModel.endProcessing();
                     this.viewStateModel.toInit();
                     CommonEventDispatcher.dispatch(CustomEventNames.OJM_DRONE_LOCAL__DRONE_HEALTH_CHECKED);
                     break;
@@ -198,13 +205,16 @@ export default class ApplicationStatesModel {
 
                 switch(dataJson.droneState) {
                 case DroneState.Ready:
+                    this.progressModel.startProcessing();
                     this.viewStateModel.toReady();
                     break;
 
                 case DroneState.Land:
                     if (this.droneHealth.getHealthInfo().state === DroneHealthState.Ok) {
+                        this.progressModel.endProcessing();
                         this.viewStateModel.toLand();
                     } else {
+                        this.progressModel.startProcessing();
                         this.viewStateModel.toReady();
                     }
                     break;
