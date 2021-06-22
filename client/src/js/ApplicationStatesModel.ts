@@ -14,7 +14,7 @@ import ProgressModel from './ProgressModel';
 
 const DRONE_HEALTH_DESCS = ['-', 'OK', 'NG'];
 
-const STATE_CONNECTION_RETRY_INTERVAL_MILLIS = 1000;
+const STATE_CONNECTION_RETRY_INTERVAL_MILLIS = 500;
 const STATE_CONNECTION_MAX_RETRY = 10;
 
 enum ApplicationState {
@@ -255,7 +255,7 @@ export default class ApplicationStatesModel {
         this.retryTimer = setTimeout(() => {
             this.retryCount++;
             if (STATE_CONNECTION_MAX_RETRY < this.retryCount) {
-                this.stopRetrying();
+                clearTimeout(this.retryTimer);
                 this.setModalMessage(Messages.err.ApplicationStatesModel_001);        
                 return;
             }
