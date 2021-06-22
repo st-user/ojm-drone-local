@@ -17,12 +17,12 @@ type Drone struct {
 	safetySignal          SafetySignal
 }
 
-func NewDrone() Drone {
+func NewDrone() *Drone {
 	d := Drone{
 		safetySignal: NewSafetySignal(),
 	}
 	d.endVideoStreaming()
-	return d
+	return &d
 }
 
 func (drone *Drone) isVideoStreamingStarted() bool {
