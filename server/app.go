@@ -18,6 +18,7 @@ import (
 	"github.com/st-user/ojm-drone-local/applog"
 	"github.com/st-user/ojm-drone-local/appos"
 	"github.com/st-user/ojm-drone-local/env"
+	"github.com/unrolled/secure"
 )
 
 var routineCoordinator = RoutineCoordinator{}
@@ -516,6 +517,17 @@ func checkSessionKeyMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func newRootSecureMiddleware() func(next http.Handler) http.Handler {
+	return secure.New(secure.Options{
+		AllowedHosts:          []string{"localhost:" + env.Get("PORT")},
+		FrameDeny:             true,
+		ContentTypeNosniff:    true,
+		BrowserXssFilter:      true,
+		ContentSecurityPolicy: "default-src 'self'; base-uri 'self'; block-all-mixed-content; font-src 'self' https: data:; frame-ancestors 'self'; img-src 'self' data:; object-src 'none'; script-src 'self'; script-src-attr 'none'; style-src 'self' https: 'unsafe-inline'; upgrade-insecure-requests",
+		ReferrerPolicy:        "no-referrer",
+	}).Handler
+}
+
 func routes() {
 
 	port := env.Get("PORT")
@@ -531,6 +543,7 @@ func routes() {
 	keyChainManager = km
 
 	rootRouter := mux.NewRouter()
+	rootRouter.Use(newRootSecureMiddleware())
 	cgiRouter := rootRouter.PathPrefix("/cgi").Subrouter()
 	cgiRouter.Use(checkSessionKeyMiddleware)
 	dmzRouter := rootRouter.PathPrefix("/dmz").Subrouter()
