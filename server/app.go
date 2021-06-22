@@ -295,6 +295,9 @@ func startSignalingConnection(connection *websocket.Conn, rtcHandler *RTCHandler
 
 	}()
 
+	drone := NewDrone()
+	drone.Start(&routineCoordinator, applicationStates)
+
 	var consecutiveErrorOnReadCount int
 	for {
 
@@ -409,8 +412,7 @@ func startSignalingConnection(connection *websocket.Conn, rtcHandler *RTCHandler
 				var localDescription *webrtc.SessionDescription
 
 				if rtcHandler.IsPrimary(peerConnectionId) {
-					drone := NewDrone()
-					drone.Start(&routineCoordinator, applicationStates)
+					drone.StartVideoStreaming()
 					localDescription, err = rtcHandler.StartPrimaryConnection(sdp, &routineCoordinator, applicationStates)
 				} else {
 					localDescription, err = rtcHandler.StartAudienceConnection(peerConnectionId, sdp, &routineCoordinator)

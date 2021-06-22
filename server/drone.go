@@ -2,6 +2,7 @@ package main
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/pion/rtcp"
@@ -11,14 +12,29 @@ import (
 )
 
 type Drone struct {
-	driver       *tello.Driver
-	safetySignal SafetySignal
+	driver                *tello.Driver
+	videoStreamingStarted atomic.Value
+	safetySignal          SafetySignal
 }
 
 func NewDrone() Drone {
-	return Drone{
+	d := Drone{
 		safetySignal: NewSafetySignal(),
 	}
+	d.endVideoStreaming()
+	return d
+}
+
+func (drone *Drone) isVideoStreamingStarted() bool {
+	return drone.videoStreamingStarted.Load().(bool)
+}
+
+func (drone *Drone) StartVideoStreaming() {
+	drone.videoStreamingStarted.Store(true)
+}
+
+func (drone *Drone) endVideoStreaming() {
+	drone.videoStreamingStarted.Store(false)
 }
 
 func (drone *Drone) Start(routineCoordinator *RoutineCoordinator, applicationStates *ApplicationStates) {
@@ -89,7 +105,11 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator, applicationSta
 				buf = append(buf, data...)
 				return
 			} else {
-				routineCoordinator.SendDroneFrameChannel(&buf)
+
+				if drone.isVideoStreamingStarted() {
+					routineCoordinator.SendDroneFrameChannel(&buf)
+				}
+
 				var zero []byte
 				buf = append(zero, data...)
 			}
