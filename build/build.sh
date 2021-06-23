@@ -41,7 +41,7 @@ BULMA_LCS_URL=https://raw.githubusercontent.com/jgthms/bulma/master/LICENSE
 curl $BULMA_LCS_URL --output work/$TEMP/LICENSES/static/bulma-license.txt
 echo $BULMA_LCS_URL > work/$TEMP/LICENSES/static/bulma-license-url.txt
 
-cp README.txt ./work/$TEMP/
+cp README_*.txt ./work/$TEMP/
 
 cd work
 env GOOS=$GOOS GOARCH=$GOARCH TEMP=$TEMP node ../make-directory.js
