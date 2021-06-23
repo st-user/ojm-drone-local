@@ -188,6 +188,7 @@ func startApp(w http.ResponseWriter, r *http.Request) (*map[string]interface{}, 
 }
 
 func startAppFrom(startKey string) error {
+	applog.Info("waiting for the waitgroup to be done...")
 	routineCoordinator.WaitUntilReleasingSocket()
 	applog.Info("End waiting for the waitgroup to be done.")
 
@@ -286,7 +287,10 @@ func restartSignalingConnection(startKeyJsonBytes []byte, retryCount int, rtcHan
 func startSignalingConnection(connection *websocket.Conn, rtcHandler *RTCHandler, recoverFunc func()) {
 	connectionStoppedChannel := make(chan struct{})
 
+	routineCoordinator.AddWaitGroupUntilReleasingSocket()
 	go func() {
+		defer routineCoordinator.DoneWaitGroupUntilReleasingSocket()
+
 		select {
 		case <-connectionStoppedChannel:
 			connection.Close()

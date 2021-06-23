@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 	"text/template"
 	"time"
 
@@ -174,6 +175,7 @@ func (ws *ApplicationStatesServer) Start(
 		return nil
 	})
 
+	var connMux sync.Mutex
 	go func() {
 		defer conn.Close()
 
@@ -195,9 +197,13 @@ func (ws *ApplicationStatesServer) Start(
 					},
 				}
 
+				connMux.Lock()
+
 				if err := conn.WriteJSON(data); err != nil {
 					applog.Warn(err.Error())
 				}
+
+				connMux.Unlock()
 
 				time.Sleep(1 * time.Second)
 			}
@@ -233,10 +239,15 @@ func (ws *ApplicationStatesServer) Start(
 			messageType := messageJson["messageType"]
 
 			if messageType == "checkSessionKey" {
+
+				connMux.Lock()
+
 				conn.WriteJSON(map[string]string{
 					"messageType":       "checkSessionKey",
 					"currentSessionKey": applicationStates.GetSessionKey(),
 				})
+
+				connMux.Unlock()
 			}
 		}
 

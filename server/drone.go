@@ -41,6 +41,7 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator, applicationSta
 
 	var driver *tello.Driver
 	var robot *gobot.Robot
+	var robotMux sync.Mutex
 
 	lastTimestampVideoReceived := time.Now().Add(-1 * time.Hour)
 	lastTimestampFightDataReceived := time.Now().Add(-1 * time.Hour)
@@ -116,22 +117,30 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator, applicationSta
 
 		}
 		driver.On(tello.VideoFrameEvent, handleData)
+
+		robotMux.Lock()
+
 		robot = gobot.NewRobot(
 			[]gobot.Connection{},
 			[]gobot.Device{driver},
 		)
 		robot.AutoRun = false
 		robot.Start()
+
+		robotMux.Unlock()
 	}
 
+	routineCoordinator.AddWaitGroupUntilReleasingSocket()
 	go func() {
-		routineCoordinator.AddWaitGroupUntilReleasingSocket()
 		defer routineCoordinator.DoneWaitGroupUntilReleasingSocket()
 
 		for {
 
 			select {
 			case command := <-routineCoordinator.DroneCommandChannel:
+
+				robotMux.Lock()
+
 				switch command.CommandType {
 				case "takeoff":
 					drone.driver.TakeOff()
@@ -143,7 +152,11 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator, applicationSta
 					drone.driver.SetVector(mVec.Y, mVec.X, mVec.Z, mVec.R)
 				}
 
+				robotMux.Unlock()
+
 			case pkt := <-routineCoordinator.RTCPPacketChannel:
+
+				robotMux.Lock()
 
 				switch _pkt := pkt.(type) {
 				case *rtcp.PictureLossIndication:
@@ -179,9 +192,16 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator, applicationSta
 					applog.Debug("ReceiverEstimation = %.2f Mb/s. The bit rate changes to %v Mb/s", bitrateMB, changeTo)
 				}
 
+				robotMux.Unlock()
+
 			case <-routineCoordinator.StopSignalChannel:
 				applog.Info("Stop drone event loop.")
+
+				robotMux.Lock()
+
 				robot.Stop()
+
+				robotMux.Unlock()
 				return
 			}
 
@@ -189,7 +209,7 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator, applicationSta
 	}()
 
 	checkerFunc := func() {
-		routineCoordinator.AddWaitGroupUntilReleasingSocket()
+
 		defer routineCoordinator.DoneWaitGroupUntilReleasingSocket()
 
 		for {
@@ -201,8 +221,12 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator, applicationSta
 					DroneHealth:  DRONE_HEALTH_UNKNOWN,
 					BatteryLevel: latestBatteryLevel,
 				})
+				robotMux.Lock()
 
 				robot.Stop()
+
+				robotMux.Unlock()
+				applog.Info("End stopping robot.")
 				return
 			default:
 
@@ -232,7 +256,12 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator, applicationSta
 						BatteryLevel: latestBatteryLevel,
 					})
 
+					robotMux.Lock()
+
 					robot.Stop()
+
+					robotMux.Unlock()
+
 					applog.Info("Restarts robot.")
 					startRobot()
 					time.Sleep(1 * time.Second)
@@ -244,6 +273,8 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator, applicationSta
 	}
 
 	startRobot()
+
+	routineCoordinator.AddWaitGroupUntilReleasingSocket()
 	go checkerFunc()
 
 	applog.Info("Drone starts.")
