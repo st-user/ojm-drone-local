@@ -24,14 +24,7 @@ type RTCMessageData struct {
 }
 
 type ICEServerInfo struct {
-	Stun        string
-	Turn        string
-	Credentials ICEServerInfoCredential
-}
-
-type ICEServerInfoCredential struct {
-	Username string
-	Password string
+	ICEServers []webrtc.ICEServer
 }
 
 type PeerType struct {
@@ -70,16 +63,7 @@ func (d *RTCMessageData) ToConfiguration() (*webrtc.Configuration, error) {
 		}
 
 		config = webrtc.Configuration{
-			ICEServers: []webrtc.ICEServer{
-				{
-					URLs: []string{iceServerInfo.Stun},
-				},
-				{
-					URLs:       []string{iceServerInfo.Turn},
-					Username:   iceServerInfo.Credentials.Username,
-					Credential: iceServerInfo.Credentials.Password,
-				},
-			},
+			ICEServers: iceServerInfo.ICEServers,
 		}
 	}
 	return &config, nil
