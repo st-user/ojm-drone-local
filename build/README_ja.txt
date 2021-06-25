@@ -2,7 +2,7 @@
 
 # ドキュメント
 
- TBD
+ https://github.com/st-user/ojm-drone-doc
 
 # ソースコード
 
@@ -31,7 +31,10 @@
  - 本ソフトを使用することによって生じた、いかなる責任についても、開発者は責任を負いません
 
 # 連絡先
+ 
+ ts_temp_dev_p-ojmdrone@yahoo.co.jp
 
- TBD
+ (製作者) Tomoki Sato: https://github.com/st-user
+ 
 
  
