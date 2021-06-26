@@ -203,7 +203,10 @@ func startAppFrom(startKey string) error {
 	}
 
 	rtcHandler := NewRTCHandler()
-	err = negotiateSignalingConnection(startKeyJsonBytes, rtcHandler)
+	drone := NewDrone()
+	drone.Start(&routineCoordinator, applicationStates)
+
+	err = negotiateSignalingConnection(startKeyJsonBytes, rtcHandler, drone)
 	if err != nil {
 		return err
 	}
@@ -231,7 +234,7 @@ func restartApp() {
 	}
 }
 
-func negotiateSignalingConnection(startKeyJsonBytes []byte, rtcHandler *RTCHandler) error {
+func negotiateSignalingConnection(startKeyJsonBytes []byte, rtcHandler *RTCHandler, drone *Drone) error {
 
 	copyStartKeyJsonBytes := make([]byte, len(startKeyJsonBytes))
 	copy(copyStartKeyJsonBytes, startKeyJsonBytes)
@@ -258,17 +261,17 @@ func negotiateSignalingConnection(startKeyJsonBytes []byte, rtcHandler *RTCHandl
 	}
 	var retryCount int
 
-	go startSignalingConnection(conn, rtcHandler, func() {
-		restartSignalingConnection(copyStartKeyJsonBytes, retryCount, rtcHandler)
+	go startSignalingConnection(conn, rtcHandler, drone, func() {
+		restartSignalingConnection(copyStartKeyJsonBytes, retryCount, rtcHandler, drone)
 	})
 
 	return nil
 }
 
-func restartSignalingConnection(startKeyJsonBytes []byte, retryCount int, rtcHandler *RTCHandler) {
+func restartSignalingConnection(startKeyJsonBytes []byte, retryCount int, rtcHandler *RTCHandler, drone *Drone) {
 	b := make([]byte, len(startKeyJsonBytes))
 	copy(b, startKeyJsonBytes)
-	err := negotiateSignalingConnection(b, rtcHandler)
+	err := negotiateSignalingConnection(b, rtcHandler, drone)
 	if err != nil {
 		maxRetry := env.GetInt("SIGNALING_ENDPOINT_MAX_RETRY")
 		if maxRetry < retryCount {
@@ -280,11 +283,11 @@ func restartSignalingConnection(startKeyJsonBytes []byte, retryCount int, rtcHan
 		interval := env.GetDuration("SIGNALING_ENDPOINT_RETRY_INTERVAL")
 		time.Sleep(interval)
 		retryCount = retryCount + 1
-		restartSignalingConnection(startKeyJsonBytes, retryCount, rtcHandler)
+		restartSignalingConnection(startKeyJsonBytes, retryCount, rtcHandler, drone)
 	}
 }
 
-func startSignalingConnection(connection *websocket.Conn, rtcHandler *RTCHandler, recoverFunc func()) {
+func startSignalingConnection(connection *websocket.Conn, rtcHandler *RTCHandler, drone *Drone, recoverFunc func()) {
 	connectionStoppedChannel := make(chan struct{})
 
 	routineCoordinator.AddWaitGroupUntilReleasingSocket()
@@ -300,8 +303,7 @@ func startSignalingConnection(connection *websocket.Conn, rtcHandler *RTCHandler
 
 	}()
 
-	drone := NewDrone()
-	drone.Start(&routineCoordinator, applicationStates)
+	applicationStates.SetDroneStateFromConnectionState(rtcHandler.IsPeerConnected())
 
 	var consecutiveErrorOnReadCount int
 	for {

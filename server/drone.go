@@ -49,15 +49,20 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator, applicationSta
 
 	startRobot := func() {
 
+		robotMux.Lock()
+
 		driver = tello.NewDriver("8888")
 		drone.driver = driver
 
+		var once sync.Once
 		driver.On(tello.ConnectedEvent, func(data interface{}) {
-			applog.Info("Starts receiving video frames from your drone.")
-			driver.StartVideo()
-			driver.SetVideoEncoderRate(tello.VideoBitRate1M)
-			gobot.Every(10*time.Second, func() {
+			once.Do(func() {
+				applog.Info("Starts receiving video frames from your drone.")
 				driver.StartVideo()
+				driver.SetVideoEncoderRate(tello.VideoBitRate1M)
+				gobot.Every(10*time.Second, func() {
+					driver.StartVideo()
+				})
 			})
 		})
 
@@ -117,8 +122,6 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator, applicationSta
 
 		}
 		driver.On(tello.VideoFrameEvent, handleData)
-
-		robotMux.Lock()
 
 		robot = gobot.NewRobot(
 			[]gobot.Connection{},

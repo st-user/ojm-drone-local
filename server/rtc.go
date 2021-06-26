@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/pion/rtcp"
@@ -102,6 +103,7 @@ type RTCHandler struct {
 	audiencePeerConnections map[string]AudiencePeerInfo
 	videoTrack              *webrtc.TrackLocalStaticSample
 	mutex                   sync.Mutex
+	isConnected             atomic.Value
 }
 
 type AudiencePeerInfo struct {
@@ -111,10 +113,12 @@ type AudiencePeerInfo struct {
 
 func NewRTCHandler() *RTCHandler {
 	applog.Debug("RTCHandler is initialized.")
-	return &RTCHandler{
+	r := &RTCHandler{
 		peerConnectionId:        "",
 		audiencePeerConnections: make(map[string]AudiencePeerInfo),
 	}
+	r.isConnected.Store(false)
+	return r
 }
 
 func (handler *RTCHandler) SetConfig(config *webrtc.Configuration) error {
@@ -218,18 +222,13 @@ func (handler *RTCHandler) StartPrimaryConnection(
 	handler.rtcPeerConnection.OnICEConnectionStateChange(func(connectionState webrtc.ICEConnectionState) {
 		applog.Info("Connection State has changed %s \n", connectionState.String())
 
-		connectionStateDesc := connectionState.String()
-		switch connectionStateDesc {
-		case "connected":
-			applicationStates.SetDroneState(DRONE_STATE_LAND)
-		case "disconnected":
-			fallthrough
-		case "failed":
-			fallthrough
-		case "closed":
-			applicationStates.SetDroneState(DRONE_STATE_READY)
+		switch connectionState {
+		case webrtc.ICEConnectionStateConnected:
+			handler.isConnected.Store(true)
+		default:
+			//handler.isConnected.Store(false)
 		}
-
+		applicationStates.SetDroneStateFromConnectionState(handler.IsPeerConnected())
 	})
 
 	handler.rtcPeerConnection.OnDataChannel(func(dataChannel *webrtc.DataChannel) {
@@ -456,4 +455,12 @@ func (handler *RTCHandler) DeleteAudience(peerConnectionId string) {
 		}
 	}
 
+}
+
+func (handler *RTCHandler) IsPeerConnected() bool {
+	if handler.rtcPeerConnection == nil {
+		return false
+	}
+
+	return handler.isConnected.Load().(bool)
 }

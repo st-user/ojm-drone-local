@@ -98,6 +98,14 @@ func (a *ApplicationStates) SetDroneState(state DroneState) {
 	a.droneState.Store(state)
 }
 
+func (a *ApplicationStates) SetDroneStateFromConnectionState(isConnected bool) {
+	if isConnected {
+		a.SetDroneState(DRONE_STATE_LAND)
+	} else {
+		a.SetDroneState(DRONE_STATE_READY)
+	}
+}
+
 func (a *ApplicationStates) GetSessionKey() string {
 	return a.sessionKey.Load().(string)
 }
