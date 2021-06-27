@@ -264,7 +264,7 @@ func (handler *RTCHandler) StartPrimaryConnection(
 				return
 			}
 			message := messageJson["command"]
-			applog.Info("%v", message)
+			applog.Debug("%v", message)
 			routineCoordinator.SendDroneCommandChannel(DroneCommand{
 				CommandType: "vector",
 				Command:     message,
