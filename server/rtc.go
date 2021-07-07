@@ -172,7 +172,8 @@ func (handler *RTCHandler) IsPrimary(peerConnectionId string) bool {
 func (handler *RTCHandler) StartPrimaryConnection(
 	remoteSdp *webrtc.SessionDescription,
 	routineCoordinator *RoutineCoordinator,
-	applicationStates *ApplicationStates) (*webrtc.SessionDescription, error) {
+	applicationStates *ApplicationStates,
+	closeHandler func()) (*webrtc.SessionDescription, error) {
 
 	handler.mutex.Lock()
 	defer handler.mutex.Unlock()
@@ -225,6 +226,11 @@ func (handler *RTCHandler) StartPrimaryConnection(
 		switch connectionState {
 		case webrtc.ICEConnectionStateConnected:
 			handler.isConnected.Store(true)
+		case webrtc.ICEConnectionStateDisconnected:
+			fallthrough
+		case webrtc.ICEConnectionStateClosed:
+			handler.isConnected.Store(false)
+			closeHandler()
 		default:
 			//handler.isConnected.Store(false)
 		}
@@ -325,7 +331,8 @@ func (handler *RTCHandler) StartPrimaryConnection(
 func (handler *RTCHandler) StartAudienceConnection(
 	peerConnectionId string,
 	remoteSdp *webrtc.SessionDescription,
-	routineCoordinator *RoutineCoordinator) (*webrtc.SessionDescription, error) {
+	routineCoordinator *RoutineCoordinator,
+	closeHandler func()) (*webrtc.SessionDescription, error) {
 
 	handler.mutex.Lock()
 	defer handler.mutex.Unlock()
@@ -339,6 +346,18 @@ func (handler *RTCHandler) StartAudienceConnection(
 		applog.Info("%v", err)
 		return &webrtc.SessionDescription{}, err
 	}
+
+	peerConnection.OnICEConnectionStateChange(func(connectionState webrtc.ICEConnectionState) {
+		applog.Info("Audience connection State has changed %s \n", connectionState.String())
+
+		switch connectionState {
+		case webrtc.ICEConnectionStateDisconnected:
+			fallthrough
+		case webrtc.ICEConnectionStateClosed:
+			closeHandler()
+		default:
+		}
+	})
 
 	stopChan := make(chan struct{})
 	peerInfo := AudiencePeerInfo{

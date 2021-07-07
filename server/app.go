@@ -380,22 +380,6 @@ func startSignalingConnection(connection *websocket.Conn, rtcHandler *RTCHandler
 				}
 				write()
 
-			case "close":
-
-				applog.Info("One of the peers has been closed.")
-				peerType := rtcMessageData.ToPeerType()
-				if rtcHandler.IsPrimary(peerType.PeerConnectionId) {
-					applog.Info("Primary peer has been closed. Restart the application.")
-					restartApp()
-					return
-
-				} else {
-					if !peerType.IsPrimary {
-						applog.Info("Audience peer has been closed. %v", peerType.PeerConnectionId)
-						rtcHandler.SendAudienceRTCStopChannel(peerType.PeerConnectionId)
-					}
-				}
-
 			case "offer":
 				applog.Info("offer")
 
@@ -420,9 +404,23 @@ func startSignalingConnection(connection *websocket.Conn, rtcHandler *RTCHandler
 
 				if rtcHandler.IsPrimary(peerConnectionId) {
 					drone.StartVideoStreaming()
-					localDescription, err = rtcHandler.StartPrimaryConnection(sdp, &routineCoordinator, applicationStates)
+					localDescription, err = rtcHandler.StartPrimaryConnection(
+						sdp,
+						&routineCoordinator,
+						applicationStates,
+						func() {
+							applog.Info("Primary peer has been closed. Restart the application.")
+							restartApp()
+						})
 				} else {
-					localDescription, err = rtcHandler.StartAudienceConnection(peerConnectionId, sdp, &routineCoordinator)
+					localDescription, err = rtcHandler.StartAudienceConnection(
+						peerConnectionId,
+						sdp,
+						&routineCoordinator,
+						func() {
+							applog.Info("Audience peer has been closed. %v", peerConnectionId)
+							rtcHandler.SendAudienceRTCStopChannel(peerConnectionId)
+						})
 				}
 
 				if err != nil {
