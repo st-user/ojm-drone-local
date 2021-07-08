@@ -3,6 +3,7 @@ package main
 import (
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -45,6 +46,11 @@ type DroneHealths struct {
 }
 
 type DroneState int
+
+type ObsoletePeerBrowsingContextData struct {
+	mutex sync.Mutex
+	data  map[string]time.Time
+}
 
 func NewApplicationStates() *ApplicationStates {
 
@@ -128,4 +134,26 @@ func (a *ApplicationStates) IsStarted() bool {
 
 func (a *ApplicationStates) Start() {
 	a.SetState(APPLICATION_STATE_STATED)
+}
+
+func NewObsoletePeerBrowsingContextData() *ObsoletePeerBrowsingContextData {
+	o := &ObsoletePeerBrowsingContextData{
+		data: make(map[string]time.Time),
+	}
+	return o
+}
+
+func (o *ObsoletePeerBrowsingContextData) Contains(browsingContextId string) bool {
+	o.mutex.Lock()
+	defer o.mutex.Unlock()
+
+	_, ok := o.data[browsingContextId]
+	return ok
+}
+
+func (o *ObsoletePeerBrowsingContextData) Set(browsingContextId string) {
+	o.mutex.Lock()
+	defer o.mutex.Unlock()
+
+	o.data[browsingContextId] = time.Now()
 }

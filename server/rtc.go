@@ -14,9 +14,10 @@ import (
 )
 
 const (
-	PEER_STATE_SAME  = "SAME"
-	PEER_STATE_EXIST = "EXIST"
-	PEER_STATE_EMPTY = "EMPTY"
+	PEER_STATE_SAME     = "SAME"
+	PEER_STATE_EXIST    = "EXIST"
+	PEER_STATE_EMPTY    = "EMPTY"
+	PEER_STATE_OBSOLETE = "OBSOLETE"
 )
 
 type RTCMessageData struct {
@@ -29,8 +30,9 @@ type ICEServerInfo struct {
 }
 
 type PeerType struct {
-	PeerConnectionId string
-	IsPrimary        bool
+	PeerConnectionId  string
+	IsPrimary         bool
+	BrowsingContextId string
 }
 
 func NewRTCMessageData(message *[]byte) (RTCMessageData, error) {
@@ -72,8 +74,9 @@ func (d *RTCMessageData) ToConfiguration() (*webrtc.Configuration, error) {
 
 func (d *RTCMessageData) ToPeerType() PeerType {
 	return PeerType{
-		PeerConnectionId: d.data["peerConnectionId"].(string),
-		IsPrimary:        d.data["isPrimary"].(bool),
+		PeerConnectionId:  d.data["peerConnectionId"].(string),
+		BrowsingContextId: d.data["browsingContextId"].(string),
+		IsPrimary:         d.data["isPrimary"].(bool),
 	}
 }
 
@@ -100,6 +103,7 @@ type RTCHandler struct {
 	rtcPeerConnection         *webrtc.PeerConnection
 	config                    *webrtc.Configuration
 	peerConnectionId          string
+	browsingContextId         string
 	localDescription          *webrtc.SessionDescription
 	audiencePeerConnections   map[string]AudiencePeerInfo
 	audienceLocalDescriptions map[string]*webrtc.SessionDescription
@@ -117,6 +121,7 @@ func NewRTCHandler() *RTCHandler {
 	applog.Debug("RTCHandler is initialized.")
 	r := &RTCHandler{
 		peerConnectionId:          "",
+		browsingContextId:         "",
 		audienceLocalDescriptions: make(map[string]*webrtc.SessionDescription),
 		audiencePeerConnections:   make(map[string]AudiencePeerInfo),
 	}
@@ -139,28 +144,39 @@ func (handler *RTCHandler) SetConfig(config *webrtc.Configuration) error {
 	return nil
 }
 
-func (handler *RTCHandler) DecidePeerState(peerType PeerType) string {
+func (handler *RTCHandler) DecidePeerState(peerType PeerType) (string, string) {
 	handler.mutex.Lock()
 	defer handler.mutex.Unlock()
 
 	if peerType.IsPrimary {
-		switch handler.peerConnectionId {
-		case "":
+
+		if handler.peerConnectionId == "" {
+			handler.browsingContextId = peerType.BrowsingContextId
 			handler.peerConnectionId = peerType.PeerConnectionId
-			return PEER_STATE_EMPTY
-		case peerType.PeerConnectionId:
-			return PEER_STATE_SAME
-		default:
-			return PEER_STATE_EXIST
+			return PEER_STATE_EMPTY, ""
+		}
+
+		if handler.browsingContextId != peerType.BrowsingContextId {
+			oldBrowsingContextId := handler.browsingContextId
+			handler.browsingContextId = peerType.BrowsingContextId
+			handler.peerConnectionId = peerType.PeerConnectionId
+			return PEER_STATE_EXIST, oldBrowsingContextId
+		} else {
+			switch handler.peerConnectionId {
+			case peerType.PeerConnectionId:
+				return PEER_STATE_SAME, ""
+			default:
+				return PEER_STATE_EXIST, ""
+			}
 		}
 
 	} else {
 		_, contains := handler.audiencePeerConnections[peerType.PeerConnectionId]
 		if contains {
-			return PEER_STATE_SAME
+			return PEER_STATE_SAME, ""
 		} else {
 			handler.audiencePeerConnections[peerType.PeerConnectionId] = AudiencePeerInfo{}
-			return PEER_STATE_EMPTY
+			return PEER_STATE_EMPTY, ""
 		}
 	}
 }

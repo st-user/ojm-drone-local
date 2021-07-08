@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -23,6 +24,7 @@ import (
 
 var routineCoordinator = RoutineCoordinator{}
 var applicationStates = NewApplicationStates()
+var obsoletePeerBrowsingContextData = NewObsoletePeerBrowsingContextData()
 var keyChainManager appos.KeyChainManager
 
 func toEndpointUrlWithTrailingSlash() string {
@@ -306,6 +308,7 @@ func startSignalingConnection(connection *websocket.Conn, rtcHandler *RTCHandler
 	applicationStates.SetDroneStateFromConnectionState(rtcHandler.IsPeerConnected())
 
 	var consecutiveErrorOnReadCount int
+	var offerMutex sync.Mutex
 	for {
 
 		select {
@@ -356,23 +359,39 @@ func startSignalingConnection(connection *websocket.Conn, rtcHandler *RTCHandler
 			case "offer":
 				applog.Info("offer")
 
+				offerMutex.Lock()
+
 				peerType := rtcMessageData.ToPeerType()
 				peerConnectionId := peerType.PeerConnectionId
 
-				state := rtcHandler.DecidePeerState(peerType)
-
-				writeErrAnswer := func() {
+				writeErrAnswer := func(state string) {
 					// rtcHandler.DeleteAudience(peerConnectionId)
 					connection.WriteJSON(map[string]interface{}{
 						"messageType":      "answer",
 						"peerConnectionId": peerConnectionId,
 						"err":              true,
+						"state":            state,
 					})
 				}
 
+				if obsoletePeerBrowsingContextData.Contains(peerType.BrowsingContextId) {
+					applog.Info("The primary peer's browsing context is obsolete.")
+					writeErrAnswer(PEER_STATE_OBSOLETE)
+					offerMutex.Unlock()
+					continue
+				}
+
+				state, oldBrowsingContextId := rtcHandler.DecidePeerState(peerType)
+				if oldBrowsingContextId != "" {
+					obsoletePeerBrowsingContextData.Set(oldBrowsingContextId)
+				}
+
 				if peerType.IsPrimary {
+
 					if state == PEER_STATE_EXIST {
 						applog.Info("New primary peer is requesting connection. Restart the application.")
+						offerMutex.Unlock()
+
 						restartApp()
 						return
 					}
@@ -381,7 +400,8 @@ func startSignalingConnection(connection *websocket.Conn, rtcHandler *RTCHandler
 				sdp, err := rtcMessageData.ToSessionDescription()
 				if err != nil {
 					applog.Info("%v", err)
-					writeErrAnswer()
+					writeErrAnswer(state)
+					offerMutex.Unlock()
 					continue
 				}
 
@@ -403,7 +423,8 @@ func startSignalingConnection(connection *websocket.Conn, rtcHandler *RTCHandler
 
 				if err != nil {
 					applog.Info("%v", err)
-					writeErrAnswer()
+					writeErrAnswer(state)
+					offerMutex.Unlock()
 					continue
 				}
 
@@ -416,6 +437,8 @@ func startSignalingConnection(connection *websocket.Conn, rtcHandler *RTCHandler
 						"type": localDescription.Type.String(),
 					},
 				})
+
+				offerMutex.Unlock()
 			}
 
 		}
