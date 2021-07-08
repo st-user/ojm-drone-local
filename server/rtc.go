@@ -97,13 +97,15 @@ func (d *RTCMessageData) ToSessionDescription() (*webrtc.SessionDescription, err
 }
 
 type RTCHandler struct {
-	rtcPeerConnection       *webrtc.PeerConnection
-	config                  *webrtc.Configuration
-	peerConnectionId        string
-	audiencePeerConnections map[string]AudiencePeerInfo
-	videoTrack              *webrtc.TrackLocalStaticSample
-	mutex                   sync.Mutex
-	isConnected             atomic.Value
+	rtcPeerConnection         *webrtc.PeerConnection
+	config                    *webrtc.Configuration
+	peerConnectionId          string
+	localDescription          *webrtc.SessionDescription
+	audiencePeerConnections   map[string]AudiencePeerInfo
+	audienceLocalDescriptions map[string]*webrtc.SessionDescription
+	videoTrack                *webrtc.TrackLocalStaticSample
+	mutex                     sync.Mutex
+	isConnected               atomic.Value
 }
 
 type AudiencePeerInfo struct {
@@ -114,8 +116,9 @@ type AudiencePeerInfo struct {
 func NewRTCHandler() *RTCHandler {
 	applog.Debug("RTCHandler is initialized.")
 	r := &RTCHandler{
-		peerConnectionId:        "",
-		audiencePeerConnections: make(map[string]AudiencePeerInfo),
+		peerConnectionId:          "",
+		audienceLocalDescriptions: make(map[string]*webrtc.SessionDescription),
+		audiencePeerConnections:   make(map[string]AudiencePeerInfo),
 	}
 	r.isConnected.Store(false)
 	return r
@@ -172,11 +175,14 @@ func (handler *RTCHandler) IsPrimary(peerConnectionId string) bool {
 func (handler *RTCHandler) StartPrimaryConnection(
 	remoteSdp *webrtc.SessionDescription,
 	routineCoordinator *RoutineCoordinator,
-	applicationStates *ApplicationStates,
-	closeHandler func()) (*webrtc.SessionDescription, error) {
+	applicationStates *ApplicationStates) (*webrtc.SessionDescription, error) {
 
 	handler.mutex.Lock()
 	defer handler.mutex.Unlock()
+
+	if handler.localDescription != nil {
+		return handler.localDescription, nil
+	}
 
 	cap := webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeH264, ClockRate: 90000}
 	videoTrack, err := webrtc.NewTrackLocalStaticSample(cap, "video", "pion")
@@ -226,11 +232,6 @@ func (handler *RTCHandler) StartPrimaryConnection(
 		switch connectionState {
 		case webrtc.ICEConnectionStateConnected:
 			handler.isConnected.Store(true)
-		case webrtc.ICEConnectionStateDisconnected:
-			fallthrough
-		case webrtc.ICEConnectionStateClosed:
-			handler.isConnected.Store(false)
-			closeHandler()
 		default:
 			//handler.isConnected.Store(false)
 		}
@@ -325,14 +326,14 @@ func (handler *RTCHandler) StartPrimaryConnection(
 		}
 	}()
 
-	return handler.rtcPeerConnection.LocalDescription(), nil
+	handler.localDescription = handler.rtcPeerConnection.LocalDescription()
+	return handler.localDescription, nil
 }
 
 func (handler *RTCHandler) StartAudienceConnection(
 	peerConnectionId string,
 	remoteSdp *webrtc.SessionDescription,
-	routineCoordinator *RoutineCoordinator,
-	closeHandler func()) (*webrtc.SessionDescription, error) {
+	routineCoordinator *RoutineCoordinator) (*webrtc.SessionDescription, error) {
 
 	handler.mutex.Lock()
 	defer handler.mutex.Unlock()
@@ -341,23 +342,15 @@ func (handler *RTCHandler) StartAudienceConnection(
 		return nil, errors.New("videoTrack is nil")
 	}
 
+	if handler.audienceLocalDescriptions[peerConnectionId] != nil {
+		return handler.audienceLocalDescriptions[peerConnectionId], nil
+	}
+
 	peerConnection, err := webrtc.NewPeerConnection(*handler.config)
 	if err != nil {
 		applog.Info("%v", err)
 		return &webrtc.SessionDescription{}, err
 	}
-
-	peerConnection.OnICEConnectionStateChange(func(connectionState webrtc.ICEConnectionState) {
-		applog.Info("Audience connection State has changed %s \n", connectionState.String())
-
-		switch connectionState {
-		case webrtc.ICEConnectionStateDisconnected:
-			fallthrough
-		case webrtc.ICEConnectionStateClosed:
-			closeHandler()
-		default:
-		}
-	})
 
 	stopChan := make(chan struct{})
 	peerInfo := AudiencePeerInfo{
@@ -446,9 +439,12 @@ func (handler *RTCHandler) StartAudienceConnection(
 
 	<-gatherComplete
 
-	return peerConnection.LocalDescription(), nil
+	localDescription := peerConnection.LocalDescription()
+	handler.audienceLocalDescriptions[peerConnectionId] = localDescription
+	return localDescription, nil
 }
 
+/*
 func (handler *RTCHandler) SendAudienceRTCStopChannel(peerConnectionId string) {
 	handler.mutex.Lock()
 	defer handler.mutex.Unlock()
@@ -475,7 +471,7 @@ func (handler *RTCHandler) DeleteAudience(peerConnectionId string) {
 	}
 
 }
-
+*/
 func (handler *RTCHandler) IsPeerConnected() bool {
 	if handler.rtcPeerConnection == nil {
 		return false

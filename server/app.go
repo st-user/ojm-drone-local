@@ -353,46 +353,31 @@ func startSignalingConnection(connection *websocket.Conn, rtcHandler *RTCHandler
 					continue
 				}
 
-			case "canOffer":
-				applog.Info("canOffer")
-
-				peerType := rtcMessageData.ToPeerType()
-				state := rtcHandler.DecidePeerState(peerType)
-
-				write := func() {
-					connection.WriteJSON(map[string]interface{}{
-						"messageType":      "canOffer",
-						"peerConnectionId": peerType.PeerConnectionId,
-						"state":            state,
-					})
-				}
-
-				if state == PEER_STATE_SAME {
-					if peerType.IsPrimary {
-						applog.Info("Primary peer is requesting new connection. Restart the application.")
-						restartApp()
-						write()
-						return
-					} else {
-						applog.Info("Audience peer(%v) is requesting new connectiond.", peerType.PeerConnectionId)
-						rtcHandler.SendAudienceRTCStopChannel(peerType.PeerConnectionId)
-					}
-				}
-				write()
-
 			case "offer":
 				applog.Info("offer")
 
-				peerConnectionId := rtcMessageData.ToPeerConnectionId()
+				peerType := rtcMessageData.ToPeerType()
+				peerConnectionId := peerType.PeerConnectionId
+
+				state := rtcHandler.DecidePeerState(peerType)
 
 				writeErrAnswer := func() {
-					rtcHandler.DeleteAudience(peerConnectionId)
+					// rtcHandler.DeleteAudience(peerConnectionId)
 					connection.WriteJSON(map[string]interface{}{
 						"messageType":      "answer",
 						"peerConnectionId": peerConnectionId,
 						"err":              true,
 					})
 				}
+
+				if peerType.IsPrimary {
+					if state == PEER_STATE_EXIST {
+						applog.Info("New primary peer is requesting connection. Restart the application.")
+						restartApp()
+						return
+					}
+				}
+
 				sdp, err := rtcMessageData.ToSessionDescription()
 				if err != nil {
 					applog.Info("%v", err)
@@ -407,20 +392,13 @@ func startSignalingConnection(connection *websocket.Conn, rtcHandler *RTCHandler
 					localDescription, err = rtcHandler.StartPrimaryConnection(
 						sdp,
 						&routineCoordinator,
-						applicationStates,
-						func() {
-							applog.Info("Primary peer has been closed. Restart the application.")
-							restartApp()
-						})
+						applicationStates)
+
 				} else {
 					localDescription, err = rtcHandler.StartAudienceConnection(
 						peerConnectionId,
 						sdp,
-						&routineCoordinator,
-						func() {
-							applog.Info("Audience peer has been closed. %v", peerConnectionId)
-							rtcHandler.SendAudienceRTCStopChannel(peerConnectionId)
-						})
+						&routineCoordinator)
 				}
 
 				if err != nil {
