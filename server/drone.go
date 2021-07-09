@@ -74,7 +74,7 @@ func (drone *Drone) Start(routineCoordinator *RoutineCoordinator, applicationSta
 				fd := data.(*tello.FlightData)
 
 				latestBatteryLevel = int(fd.BatteryPercentage)
-				applog.Info("Battery level %v%%", fd.BatteryPercentage)
+				applog.Debug("Battery level %v%%", fd.BatteryPercentage)
 
 				lastLoggedTime = time.Now()
 			}
